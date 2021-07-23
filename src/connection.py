@@ -34,10 +34,10 @@ class Connection:
         return True
 
     def __str__(self):
-        return '{}:{},{}'.format(self.__remote_host, self.__remote_port, self.sent_message_time)
+        return '{}:{}, last sent_message_time {}'.format(self.__remote_host, self.__remote_port, self.sent_message_time)
 
     def __repr__(self):
-        return '{}:{},{}'.format(self.__remote_host, self.__remote_port, self.sent_message_time)
+        return '{}:{}, last sent_message_time {}'.format(self.__remote_host, self.__remote_port, self.sent_message_time)
 
     def is_alive(self):
         if self.transport.is_closing():
@@ -76,13 +76,13 @@ class Connection:
 
     def set_pub_key(self, pub_key):
         self.__pub_key = pub_key
-        self.fingerprint = CryptTools().make_fingerprint(self.__pub_key)
+        self.__fingerprint = CryptTools().make_fingerprint(pub_key)
 
     def get_pub_key(self):
         return self.__pub_key
 
     def get_fingerprint(self):
-        return self.fingerprint
+        return self.__fingerprint
 
     def get_remote_addr(self):
         return (self.__remote_host, self.__remote_port)

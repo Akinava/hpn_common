@@ -101,14 +101,20 @@ class Parser:
     @classmethod
     def recovery_contraction(cls, protocol):
         def get_define_name_list(package_protocol):
-            return package_protocol['define']
+            if isinstance(package_protocol['define'], list):
+                return package_protocol['define']
+            return [package_protocol['define']]
 
         def get_structure_name_list(package_protocol):
             structure = package_protocol.get('structure')
             return [part['name'] for part in structure]
 
         def recovery_contraction_name(place, contraction_items, items):
-            return items[: place] + contraction_items['structure'] + items[place+1: ]
+            if isinstance(items, list):
+                return items[: place] + contraction_items['structure'] + items[place+1: ]
+            else:
+                return contraction_items['structure']
+
 
         def recovery_define(package_protocol, found_define_contraction):
             for contraction_name in found_define_contraction:
