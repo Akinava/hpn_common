@@ -111,7 +111,7 @@ class Handler:
         connection.send(encrypted_message)
 
     def define_swarm_ping(self):
-        timestamp = self.parser.unpack_timestamp(self.connection.get_request())
+        timestamp = self.parser.unpack_timestamp(part_data=self.connection.get_request())
         return timestamp - settings.peer_ping_time_seconds < time.time() < timestamp + settings.peer_ping_time_seconds
 
     def swarm_ping(self, **kwargs):

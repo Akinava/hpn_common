@@ -42,12 +42,12 @@ class Parser:
         data = self.connection.get_request()
         package_structure = self.package_protocol['structure']
         for part_structure in package_structure:
-            part_name = part_structure['name']
             part_data, data = self.__unpack_stream(data, part_structure['length'])
-            package.update(self.set_type(part_name, part_data, part_structure))
+            package.update(self.set_type(part_data, part_structure))
         return package
 
-    def set_type(self, part_name, part_data, part_structure):
+    def set_type(self, part_data, part_structure):
+        part_name = part_structure['name']
         part_type = part_structure.get('type', NULL())
         if part_type is NULL():
             return {part_name: part_data}
@@ -59,8 +59,8 @@ class Parser:
             return package_data
         return {part_name: package_data}
 
-    def unpack_timestamp(self, part_data):
-        return self.unpack_int(part_data)
+    def unpack_timestamp(self, **kwargs):
+        return self.unpack_int(kwargs['part_data'])
 
     def unpack_bool_marker(self, **kwargs):
         return kwargs['part_data'] == 1
@@ -180,7 +180,7 @@ class Parser:
         return marker_data >> left_shift
 
     def __make_mask(self, start_bit, length_bit, length_data_byte):
-        return  ((1 << length_bit) - 1) << 8 * length_data_byte - start_bit - length_bit
+        return ((1 << length_bit) - 1) << 8 * length_data_byte - start_bit - length_bit
 
     def __get_left_shift(self, start_bit, length_bit, length_data_byte):
         return length_data_byte * 8 - start_bit - length_bit
