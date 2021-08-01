@@ -43,8 +43,20 @@ class Parser:
         package_structure = self.package_protocol['structure']
         for part_structure in package_structure:
             part_data, data = self.__unpack_stream(data, part_structure['length'])
-            package.update(self.set_type(part_data, part_structure))
+            part_package = self.unpack_type(part_data, part_structure)
+            package.update(part_package)
         return package
+
+    def unpack_type(self, part_data, part_structure):
+        part_type = part_structure.get('type', NULL())
+        part_name = part_structure['name']
+        if part_type is NULL():
+            return {part_name: part_data}
+        unpack_type_function = getattr(self, 'unpack_{}'.format(part_type))
+        unpack_data = unpack_type_function(part_name=part_name, part_data=part_data)
+        if isinstance(unpack_data, dict):
+            return unpack_data
+        return {part_name: unpack_data}
 
     def set_type(self, part_data, part_structure):
         part_name = part_structure['name']
@@ -67,6 +79,9 @@ class Parser:
 
     def pack_bool(self, part_data):
         return b'\x01' if part_data else b'\x00'
+
+    def unpack_bool(self, **kwargs):
+        return kwargs['part_data'] == b'\x01'
 
     def get_part(self, name, package_protocol=None):
         self.set_package_protocol(package_protocol)
@@ -199,3 +214,15 @@ class Parser:
 
     def __unpack_stream(self, data, length):
         return data[: length], data[length:]
+
+    def unpack_size(self, data):
+        size = data[0]  # binary convert to int by magic ¯\_(ツ)_/¯
+        data = data[1:]
+        if size <= 0xfc:
+            return size, data
+        if size == 0xfd:
+            return self.unpack_int(data[:2]), data[2:]
+        if size == 0xfe:
+            return self.unpack_int(data[:4]), data[4:]
+        if size == 0xff:
+            return self.unpack_int(data[:8]), data[8:]

@@ -102,6 +102,9 @@ class Tools(Singleton):
     def aes_encode(self, key, message):
         return AES(key).encode(message)
 
+    def aes_decode(self, key, message):
+        return AES(key).decode(message)
+
     def encrypt(self, message, remote_pub_key):
         sharedsecret = self.get_shared_key_ecdh(remote_pub_key)
         return self.aes_encode(sharedsecret, message)

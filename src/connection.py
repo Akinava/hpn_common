@@ -67,6 +67,9 @@ class Connection:
     def __set_remote_addr(self, remote_addr):
         self.__remote_host, self.__remote_port = remote_addr
 
+    def set_request(self, request):
+        self.__request = request
+
     def get_request(self):
         return self.__request
 

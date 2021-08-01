@@ -58,6 +58,7 @@ class Handler:
     def __define_package(self):
         logger.debug('')
         for package_protocol in self.protocol['packages'].values():
+            print('=== package_protocol', package_protocol['name'])
             self.package_protocol = package_protocol
             self.parser.set_package_protocol(package_protocol)
             if self.__define_request():
@@ -74,6 +75,7 @@ class Handler:
                 return False
             define_func = getattr(self, define_func_name)
             if not define_func() is True:
+                print('>>>', define_func_name, False)
                 return False
         return True
 
