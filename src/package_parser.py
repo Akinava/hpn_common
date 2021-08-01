@@ -45,6 +45,7 @@ class Parser:
             part_data, data = self.__unpack_stream(data, part_structure['length'])
             part_package = self.unpack_type(part_data, part_structure)
             package.update(part_package)
+        print('>>> package', package)
         return package
 
     def unpack_type(self, part_data, part_structure):
@@ -72,7 +73,7 @@ class Parser:
         return {part_name: package_data}
 
     def unpack_timestamp(self, **kwargs):
-        return self.unpack_int(kwargs['part_data'])
+        return self.unpack_int(**kwargs)
 
     def unpack_bool_marker(self, **kwargs):
         return kwargs['part_data'] == 1
@@ -100,7 +101,7 @@ class Parser:
 
     def calc_list_length(self, list_name, skip_bytes):
         data = self.connection.get_request()[skip_bytes:]
-        size, _ = self.unpack_size(data)
+        size, _ = self.unpack_self_defined_int(data)
         list_structure = self.__protocol['lists'][list_name]['structure']
         list_structure_length = self.calc_structure_length(structure=list_structure)
         return size * list_structure_length
@@ -178,7 +179,7 @@ class Parser:
         return unpack_package
 
     def unpack_single_marker(self, marker_name, marker_data):
-        return {marker_name: self.unpack_int(marker_data)}
+        return {marker_name: self.unpack_int(part_data=marker_data)}
 
     def __split_markers(self, marker_structure, markers_data):
         markers_data_length = len(markers_data)
@@ -190,7 +191,7 @@ class Parser:
             marker_structure['start_bit'],
             marker_structure['length'],
             markers_data_length)
-        marker_packed_int = self.unpack_int(markers_data)
+        marker_packed_int = self.unpack_int(part_data=markers_data)
         marker_data = marker_packed_int & marker_mask
         return marker_data >> left_shift
 
@@ -206,8 +207,8 @@ class Parser:
                 return marker_description
         raise Exception('Error: no description for marker {}'.format(marker_name))
 
-    def unpack_int(self, data):
-        return struct.unpack('>' + self.struct_length[len(data)], data)[0]
+    def unpack_int(self, **kwargs):
+        return struct.unpack('>' + self.struct_length[len(kwargs['part_data'])], kwargs['part_data'])[0]
 
     def pack_int(self, data, size):
         return struct.pack('>' + self.struct_length[size], data)
@@ -215,14 +216,14 @@ class Parser:
     def __unpack_stream(self, data, length):
         return data[: length], data[length:]
 
-    def unpack_size(self, data):
+    def unpack_self_defined_int(self, data):
         size = data[0]  # binary convert to int by magic ¯\_(ツ)_/¯
         data = data[1:]
         if size <= 0xfc:
             return size, data
         if size == 0xfd:
-            return self.unpack_int(data[:2]), data[2:]
+            return self.unpack_int(part_data=data[:2]), data[2:]
         if size == 0xfe:
-            return self.unpack_int(data[:4]), data[4:]
+            return self.unpack_int(part_data=data[:4]), data[4:]
         if size == 0xff:
-            return self.unpack_int(data[:8]), data[8:]
+            return self.unpack_int(part_data=data[:8]), data[8:]

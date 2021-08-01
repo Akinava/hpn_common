@@ -94,7 +94,7 @@ PROTOCOL = {
             'name': 'ctr_structure_version_id_marker_receiver_fingerprint_timestamp',
             'structure': [
                 {'name': ('major_version_marker', 'minor_version_marker'), 'length': 1, 'type': 'markers'},
-                {'name': 'package_id_marker', 'length': 1},
+                {'name': 'package_id_marker', 'length': 1,  'type': 'int'},
                 {'name': 'receiver_fingerprint', 'length': CryptTools.fingerprint_length},
                 {'name': 'timestamp', 'length': 4, 'type': 'timestamp'},
             ]

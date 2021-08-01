@@ -112,16 +112,13 @@ class Handler:
         encrypted_message = self.crypt_tools.encrypt_message(**kwargs, connection=connection)
         connection.send(encrypted_message)
 
-    def define_swarm_ping(self):
-        timestamp = self.parser.unpack_timestamp(part_data=self.connection.get_request())
-        return timestamp - settings.peer_ping_time_seconds < time.time() < timestamp + settings.peer_ping_time_seconds
-
     def swarm_ping(self, **kwargs):
         self.send(**kwargs, message=self.parser.pack_timestamp())
 
     def verify_package_length(self):
         request_length = len(self.connection.get_request())
         required_length = self.parser.calc_structure_length()
+        print('>>> verify_package_length request_length = ', request_length, 'required_length = ', required_length)
         return required_length == request_length
 
     def verify_protocol_version(self):
@@ -134,9 +131,17 @@ class Handler:
     def verify_package_id_marker(self):
         request_id_marker = self.parser.get_part('package_id_marker')
         required_id_marker = self.package_protocol['package_id_marker']
+        print('>>> verify_package_id_marker request_id_marker = ', request_id_marker, 'required_id_marker = ', required_id_marker)
         return request_id_marker == required_id_marker
+
+    def define_swarm_ping(self):
+        timestamp = self.parser.unpack_timestamp(part_data=self.connection.get_request())
+        return self.check_timestamp_edge(timestamp)
 
     def verify_timestamp(self):
         timestamp = self.parser.get_part('timestamp')
-        return time() - settings.peer_ping_time_seconds < timestamp < time() + settings.peer_ping_time_seconds
+        return self.check_timestamp_edge(timestamp)
+
+    def check_timestamp_edge(self, timestamp):
+        return time.time() - settings.peer_ping_time_seconds < timestamp < time.time() + settings.peer_ping_time_seconds
 
