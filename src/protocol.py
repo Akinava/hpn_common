@@ -34,7 +34,7 @@ PROTOCOL = {
                 {'name': ('encrypted_request_marker', 'package_id_marker'), 'length': 1, 'type': 'markers'},
                 {'name': 'receiver_fingerprint', 'length': CryptTools.fingerprint_length},
                 {'name': 'timestamp', 'length': 4, 'type': 'timestamp'},
-                {'name': 'requester_open_key', 'length': CryptTools.pub_key_length}]},
+                {'name': 'requester_pub_key', 'length': CryptTools.pub_key_length}]},
         'hpn_neighbour_client': {
             'name': 'hpn_neighbour_client',
             'package_id_marker': 2,
@@ -44,7 +44,7 @@ PROTOCOL = {
             'response': 'hpn_servers_request',
             'structure': [
                 {'name': 'ctr_structure_protocol_version_id_marker_receiver_fingerprint_timestamp', 'type': 'contraction'},
-                {'name': 'neighbour_open_key', 'length': CryptTools.pub_key_length},
+                {'name': 'neighbour_pub_key', 'length': CryptTools.pub_key_length},
                 {'name': 'neighbour_addr', 'length': Parser.get_packed_addr_length(), 'type': 'addr'},
                 {'name': 'disconnect_flag', 'length': 1, 'type': 'bool'}]},
         'hpn_servers_request': {
@@ -78,7 +78,7 @@ PROTOCOL = {
             'name': 'sstn_list',
             'length': {'min': 1, 'max': 10},
             'structure': [
-                {'name': 'sstn_open_key', 'length': CryptTools.pub_key_length},
+                {'name': 'sstn_pub_key', 'length': CryptTools.pub_key_length},
                 {'name': 'sstn_type', 'length': 1},
                 {'name': 'sstn_addr', 'length': Parser.get_packed_addr_length()}]}
     },

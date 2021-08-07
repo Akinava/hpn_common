@@ -153,6 +153,10 @@ class Handler:
     def get_timestamp(self, **kwargs):
         return self.parser.pack_timestamp()
 
+    def get_package_id_marker(self, **kwargs):
+        marker = self.parser.find_protocol_package(kwargs['package_name'])['package_id_marker']
+        return self.parser.pack_int(marker, 1)
+
     def get_markers(self, **kwargs):
         markers = 0
         for marker_name in kwargs['markers']['name']:

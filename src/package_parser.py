@@ -91,7 +91,7 @@ class Parser:
         res = struct.unpack(self.struct_addr, kwargs['part_data'])
         host = '.'.join(map(str, res[:4]))
         port = res[4]
-        return {'host': host, 'port': port}
+        return (host, port)
 
     def get_part(self, name, package_protocol=None):
         self.set_package_protocol(package_protocol)

@@ -87,14 +87,14 @@ class Tools(Singleton):
     def get_fingerprint(self):
         return self.fingerprint
 
-    def get_open_key(self):
+    def get_pub_key(self):
         return self.ecdsa.get_pub_key()
 
     def get_fingerprint_len(self):
         return self.fingerprint_length
 
-    def make_fingerprint(self, open_key):
-        return sha256(open_key)
+    def make_fingerprint(self, pub_key):
+        return sha256(pub_key)
 
     def get_shared_key_ecdh(self, remote_pub_key):
         return self.ecdh.get_shared_key(remote_pub_key)
