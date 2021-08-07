@@ -97,9 +97,9 @@ class Connection:
         return self.__encrypt_marker
 
     def send(self, response):
-        logger.info('%s to %s' % (response.hex(), (self.__remote_host, self.__remote_port)))
         self.transport.sendto(response, (self.__remote_host, self.__remote_port))
         self.set_time_sent_message()
+        logger.info('%s to %s' % (response.hex(), (self.__remote_host, self.__remote_port)))
 
     def shutdown(self):
         if self.transport.is_closing():

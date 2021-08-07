@@ -58,7 +58,6 @@ class Handler:
     def __define_package(self):
         logger.debug('')
         for package_protocol in self.protocol['packages'].values():
-            print('=== package_protocol', package_protocol['name'])
             self.package_protocol = package_protocol
             self.parser.set_package_protocol(package_protocol)
             if self.__define_request():
@@ -75,7 +74,6 @@ class Handler:
                 return False
             define_func = getattr(self, define_func_name)
             if not define_func() is True:
-                print('>>>', define_func_name, False)
                 return False
         return True
 
@@ -108,17 +106,17 @@ class Handler:
         return message
 
     def send(self, **kwargs):
+        logger.info('decrypted response %s' % (kwargs['message'].hex()))
         connection = kwargs.get('connection', self.connection)
         encrypted_message = self.crypt_tools.encrypt_message(**kwargs, connection=connection)
         connection.send(encrypted_message)
 
-    def swarm_ping(self, **kwargs):
+    def hpn_ping(self, **kwargs):
         self.send(**kwargs, message=self.parser.pack_timestamp())
 
     def verify_package_length(self):
         request_length = len(self.connection.get_request())
         required_length = self.parser.calc_structure_length()
-        print('>>> verify_package_length request_length = ', request_length, 'required_length = ', required_length)
         return required_length == request_length
 
     def verify_protocol_version(self):
@@ -131,10 +129,9 @@ class Handler:
     def verify_package_id_marker(self):
         request_id_marker = self.parser.get_part('package_id_marker')
         required_id_marker = self.package_protocol['package_id_marker']
-        print('>>> verify_package_id_marker request_id_marker = ', request_id_marker, 'required_id_marker = ', required_id_marker)
         return request_id_marker == required_id_marker
 
-    def define_swarm_ping(self):
+    def define_hpn_ping(self):
         timestamp = self.parser.unpack_timestamp(part_data=self.connection.get_request())
         return self.check_timestamp_edge(timestamp)
 
@@ -145,3 +142,13 @@ class Handler:
     def check_timestamp_edge(self, timestamp):
         return time.time() - settings.peer_ping_time_seconds < timestamp < time.time() + settings.peer_ping_time_seconds
 
+    def verify_receiver_fingerprint(self, **kwargs):
+        my_fingerprint_from_request = self.parser.get_part('receiver_fingerprint')
+        my_fingerprint_reference = self.crypt_tools.get_fingerprint()
+        return my_fingerprint_from_request == my_fingerprint_reference
+
+    def get_receiver_fingerprint(self, **kwargs):
+        return kwargs['receiver_connection'].get_fingerprint()
+
+    def get_timestamp(self, **kwargs):
+        return self.parser.pack_timestamp()

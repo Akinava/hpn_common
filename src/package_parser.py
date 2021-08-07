@@ -45,7 +45,6 @@ class Parser:
             part_data, data = self.__unpack_stream(data, part_structure['length'])
             part_package = self.unpack_type(part_data, part_structure)
             package.update(part_package)
-        print('>>> package', package)
         return package
 
     def unpack_type(self, part_data, part_structure):
@@ -84,6 +83,16 @@ class Parser:
     def unpack_bool(self, **kwargs):
         return kwargs['part_data'] == b'\x01'
 
+    def pack_addr(self, addr):
+        host, port = addr
+        return struct.pack(self.struct_addr, *(map(int, host.split('.'))), port)
+
+    def unpack_addr(self, **kwargs):
+        res = struct.unpack(self.struct_addr, kwargs['part_data'])
+        host = '.'.join(map(str, res[:4]))
+        port = res[4]
+        return {'host': host, 'port': port}
+
     def get_part(self, name, package_protocol=None):
         self.set_package_protocol(package_protocol)
         return self.unpack_package().get(name, NULL())
@@ -105,10 +114,6 @@ class Parser:
         list_structure = self.__protocol['lists'][list_name]['structure']
         list_structure_length = self.calc_structure_length(structure=list_structure)
         return size * list_structure_length
-
-    def pack_addr(self, addr):
-        host, port = addr
-        return struct.pack(self.struct_addr, *(map(int, host.split('.'))), port)
 
     @classmethod
     def get_packed_addr_length(cls):

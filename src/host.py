@@ -53,14 +53,14 @@ class Host:
             await asyncio.sleep(1)
 
     def __ping_connections(self):
-        package_protocol = self.protocol['packages']['swarm_ping']
+        package_protocol = self.protocol['packages']['hpn_ping']
         for connection in self.net_pool.get_all_connections():
             if connection.last_sent_message_is_over_ping_time():
                 logger.debug('send ping to {}'.format(connection))
                 self.handler(
                     connection=connection,
                     protocol=self.protocol
-                ).swarm_ping(
+                ).hpn_ping(
                     package_protocol=package_protocol)
 
     def __shutdown_connections(self):

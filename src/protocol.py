@@ -13,51 +13,52 @@ from package_parser import Parser
 PROTOCOL = {
     'client_protocol_version': __version__,
     'packages': {
-        'swarm_ping': {
-            'name': 'swarm_ping',
+        'hpn_ping': {
+            'name': 'hpn_ping',
             'define': [
                 'verify_package_length',
-                'define_swarm_ping'],
+                'define_hpn_ping'],
             'encrypted': False,
             'signed': False,
             'structure': [
-                {'name': 'swarm_ping', 'length': 4}]},
-        'swarm_peer_request': {
-            'name': 'swarm_peer_request',
+                {'name': 'timestamp', 'length': 4, 'type': 'timestamp'}]},
+        'hpn_neighbour_client_request': {
+            'name': 'hpn_neighbour_client_request',
             'package_id_marker': 1,
             'define': 'ctr_verify_len_ver_id_marker_timestamp_receiver_fingerprint',
             'encrypted': False,
             'signed': False,
-            'response': 'swarm_peer',
+            'response': 'hpn_neighbour_client',
             'structure': [
                 {'name': ('major_version_marker', 'minor_version_marker'), 'length': 1, 'type': 'markers'},
                 {'name': ('encrypted_request_marker', 'package_id_marker'), 'length': 1, 'type': 'markers'},
                 {'name': 'receiver_fingerprint', 'length': CryptTools.fingerprint_length},
                 {'name': 'timestamp', 'length': 4, 'type': 'timestamp'},
                 {'name': 'requester_open_key', 'length': CryptTools.pub_key_length}]},
-        'swarm_peer': {
-            'name': 'swarm_peer',
+        'hpn_neighbour_client': {
+            'name': 'hpn_neighbour_client',
             'package_id_marker': 2,
             'define': 'ctr_verify_len_ver_id_marker_timestamp_receiver_fingerprint',
             'encrypted': True,
             'signed': True,
+            'response': 'hpn_servers_request',
             'structure': [
                 {'name': 'ctr_structure_version_id_marker_receiver_fingerprint_timestamp', 'type': 'contraction'},
                 {'name': 'neighbour_open_key', 'length': CryptTools.pub_key_length},
-                {'name': 'neighbour_addr', 'length': Parser.get_packed_addr_length()},
+                {'name': 'neighbour_addr', 'length': Parser.get_packed_addr_length(), 'type': 'addr'},
                 {'name': 'disconnect_flag', 'length': 1, 'type': 'bool'}]},
-        'sstn_request': {
-            'name': 'sstn_request',
+        'hpn_servers_request': {
+            'name': 'hpn_servers_request',
             'package_id_marker': 3,
             'define': 'ctr_verify_len_ver_id_marker_timestamp_receiver_fingerprint',
             'encrypted': True,
             'signed': True,
-            'response': 'sstn_list',
+            'response': 'hpn_servers_list',
             'structure': [
                 {'name': 'ctr_structure_version_id_marker_receiver_fingerprint_timestamp', 'type': 'contraction'}]
         },
-        'sstn_list': {
-            'name': 'sstn_list',
+        'hpn_servers_list': {
+            'name': 'hpn_servers_list',
             'package_id_marker': 4,
             'define': 'ctr_verify_len_ver_id_marker_timestamp_receiver_fingerprint',
             'encrypted': True,
