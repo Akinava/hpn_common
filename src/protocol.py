@@ -30,7 +30,7 @@ PROTOCOL = {
             'signed': False,
             'response': 'hpn_neighbour_client',
             'structure': [
-                {'name': ('major_version_marker', 'minor_version_marker'), 'length': 1, 'type': 'markers'},
+                {'name': ('major_protocol_version_marker', 'minor_protocol_version_marker'), 'length': 1, 'type': 'markers'},
                 {'name': ('encrypted_request_marker', 'package_id_marker'), 'length': 1, 'type': 'markers'},
                 {'name': 'receiver_fingerprint', 'length': CryptTools.fingerprint_length},
                 {'name': 'timestamp', 'length': 4, 'type': 'timestamp'},
@@ -43,7 +43,7 @@ PROTOCOL = {
             'signed': True,
             'response': 'hpn_servers_request',
             'structure': [
-                {'name': 'ctr_structure_version_id_marker_receiver_fingerprint_timestamp', 'type': 'contraction'},
+                {'name': 'ctr_structure_protocol_version_id_marker_receiver_fingerprint_timestamp', 'type': 'contraction'},
                 {'name': 'neighbour_open_key', 'length': CryptTools.pub_key_length},
                 {'name': 'neighbour_addr', 'length': Parser.get_packed_addr_length(), 'type': 'addr'},
                 {'name': 'disconnect_flag', 'length': 1, 'type': 'bool'}]},
@@ -55,7 +55,7 @@ PROTOCOL = {
             'signed': True,
             'response': 'hpn_servers_list',
             'structure': [
-                {'name': 'ctr_structure_version_id_marker_receiver_fingerprint_timestamp', 'type': 'contraction'}]
+                {'name': 'ctr_structure_protocol_version_id_marker_receiver_fingerprint_timestamp', 'type': 'contraction'}]
         },
         'hpn_servers_list': {
             'name': 'hpn_servers_list',
@@ -64,14 +64,14 @@ PROTOCOL = {
             'encrypted': True,
             'signed': True,
             'structure': [
-                {'name': 'ctr_structure_version_id_marker_receiver_fingerprint_timestamp', 'type': 'contraction'},
+                {'name': 'ctr_structure_protocol_version_id_marker_receiver_fingerprint_timestamp', 'type': 'contraction'},
                 {'name': 'sstn_list', 'type': 'list'}]}
     },
     'markers': {
         'encrypted_request_marker': {'name': 'encrypted_request_marker', 'start_bit': 0, 'length': 1, 'type': 'bool_marker'},
         'package_id_marker': {'name': 'package_id_marker', 'start_bit': 1, 'length': 7, 'type': 'int'},
-        'major_version_marker': {'name': 'major_version_marker', 'start_bit': 0, 'length': 4, 'type': 'int'},
-        'minor_version_marker': {'name': 'minor_version_marker', 'start_bit': 4, 'length': 4, 'type': 'int'},
+        'major_protocol_version_marker': {'name': 'major_protocol_version_marker', 'start_bit': 0, 'length': 4, 'type': 'int'},
+        'minor_protocol_version_marker': {'name': 'minor_protocol_version_marker', 'start_bit': 4, 'length': 4, 'type': 'int'},
     },
     'lists': {
         'sstn_list': {
@@ -91,10 +91,10 @@ PROTOCOL = {
                 'verify_package_id_marker',
                 'verify_timestamp',
                 'verify_receiver_fingerprint']},
-        'ctr_structure_version_id_marker_receiver_fingerprint_timestamp': {
-            'name': 'ctr_structure_version_id_marker_receiver_fingerprint_timestamp',
+        'ctr_structure_protocol_version_id_marker_receiver_fingerprint_timestamp': {
+            'name': 'ctr_structure_protocol_version_id_marker_receiver_fingerprint_timestamp',
             'structure': [
-                {'name': ('major_version_marker', 'minor_version_marker'), 'length': 1, 'type': 'markers'},
+                {'name': ('major_protocol_version_marker', 'minor_protocol_version_marker'), 'length': 1, 'type': 'markers'},
                 {'name': 'package_id_marker', 'length': 1,  'type': 'int'},
                 {'name': 'receiver_fingerprint', 'length': CryptTools.fingerprint_length},
                 {'name': 'timestamp', 'length': 4, 'type': 'timestamp'},
