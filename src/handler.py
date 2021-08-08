@@ -12,6 +12,7 @@ import settings
 from crypt_tools import Tools as CryptTools
 from package_parser import Parser
 from connection import Connection, NetPool
+from utilit import check_border_with_over_flow
 
 
 class Handler:
@@ -73,6 +74,7 @@ class Handler:
                 logger.info('define_func {} is not implemented'.format(define_func_name))
                 return False
             define_func = getattr(self, define_func_name)
+            # print('>>> ', self.package_protocol['name'], define_func_name, define_func())
             if not define_func() is True:
                 return False
         return True
@@ -111,8 +113,17 @@ class Handler:
         encrypted_message = self.crypt_tools.encrypt_message(**kwargs, connection=connection)
         connection.send(encrypted_message)
 
-    def hpn_ping(self, **kwargs):
-        self.send(**kwargs, message=self.parser.pack_timestamp())
+    def hpn_ping(self):
+        message = self.parser.pack_int(int(time.time()) & 0xff, 1)
+        self.send(
+            message=message,
+            package_protocol=self.protocol['packages']['hpn_ping'])
+
+    def define_hpn_ping(self):
+        value = self.parser.unpack_int(part_data=self.connection.get_request())
+        max = (int(time.time()) + settings.peer_ping_time_seconds) & 0xff
+        min = (int(time.time()) - settings.peer_ping_time_seconds) & 0xff
+        return check_border_with_over_flow(min, max, value)
 
     def verify_package_length(self):
         request_length = len(self.connection.get_request())
@@ -131,15 +142,11 @@ class Handler:
         required_id_marker = self.package_protocol['package_id_marker']
         return request_id_marker == required_id_marker
 
-    def define_hpn_ping(self):
-        timestamp = self.parser.unpack_timestamp(part_data=self.connection.get_request())
-        return self.check_timestamp_edge(timestamp)
-
     def verify_timestamp(self):
         timestamp = self.parser.get_part('timestamp')
-        return self.check_timestamp_edge(timestamp)
+        return self.check_border_timestamp(timestamp)
 
-    def check_timestamp_edge(self, timestamp):
+    def check_border_timestamp(self, timestamp):
         return time.time() - settings.peer_ping_time_seconds < timestamp < time.time() + settings.peer_ping_time_seconds
 
     def verify_receiver_fingerprint(self, **kwargs):

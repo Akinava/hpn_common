@@ -21,7 +21,7 @@ PROTOCOL = {
             'encrypted': False,
             'signed': False,
             'structure': [
-                {'name': 'timestamp', 'length': 4, 'type': 'timestamp'}]},
+                {'name': 'hpn_ping', 'length': 1, 'type': 'hpn_ping'}]},
         'hpn_neighbour_client_request': {
             'name': 'hpn_neighbour_client_request',
             'package_id_marker': 1,

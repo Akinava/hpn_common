@@ -102,6 +102,8 @@ class Parser:
             structure = self.package_protocol['structure']
         length = 0
         for part in structure:
+            if length > len(self.connection.get_request()):
+                return None
             if part.get('type') == 'list':
                 length += self.calc_list_length(part['name'], length)
                 continue

@@ -49,6 +49,11 @@ def str_to_datetime(datatime_string):
     return datetime.strptime(datatime_string, settings.DATA_FORMAT)
 
 
+def check_border_with_over_flow(min, max, value):
+    if min < max:
+        return min < value < max
+    return value > min or max > value
+
 def read_config_file():
     with open(settings.config_file, 'r') as cfg_file:
         return json.loads(cfg_file.read())
