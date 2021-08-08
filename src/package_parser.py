@@ -37,10 +37,15 @@ class Parser:
     def set_connection(self, connection):
         self.connection = connection
 
-    def unpack_package(self):
+    def unpack_package(self, data=None, package_protocol_name=None):
+        if data is None:
+            data = self.connection.get_request()
+        if package_protocol_name is None:
+            package_structure = self.package_protocol['structure']
+        else:
+            package_structure = self.__protocol['packages'][package_protocol_name]['structure']
+
         package = {}
-        data = self.connection.get_request()
-        package_structure = self.package_protocol['structure']
         for part_structure in package_structure:
             part_data, data = self.__unpack_stream(data, part_structure['length'])
             part_package = self.unpack_type(part_data, part_structure)

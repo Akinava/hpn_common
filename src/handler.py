@@ -109,15 +109,17 @@ class Handler:
 
     def send(self, **kwargs):
         logger.info('decrypted response %s' % (kwargs['message'].hex()))
-        connection = kwargs.get('connection', self.connection)
-        encrypted_message = self.crypt_tools.encrypt_message(**kwargs, connection=connection)
-        connection.send(encrypted_message)
+        if 'connection' not in kwargs:
+            kwargs['connection'] = self.connection
+        kwargs['package_protocol'] = self.protocol['packages'][kwargs['package_protocol_name']]
+        encrypted_message = self.crypt_tools.encrypt_message(**kwargs)
+        kwargs['connection'].send(encrypted_message)
 
     def hpn_ping(self):
         message = self.parser.pack_int(int(time.time()) & 0xff, 1)
         self.send(
             message=message,
-            package_protocol=self.protocol['packages']['hpn_ping'])
+            package_protocol_name='hpn_ping')
 
     def define_hpn_ping(self):
         value = self.parser.unpack_int(part_data=self.connection.get_request())
