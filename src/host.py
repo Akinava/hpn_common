@@ -19,7 +19,7 @@ class Host:
     def __init__(self, handler, protocol):
         logger.debug('')
         self.handler = handler
-        self.protocol = Parser.recovery_contraction(protocol)
+        self.protocol = Parser.init_protocol(protocol)
         self.net_pool = NetPool()
         self.__set_posix_handler()
 

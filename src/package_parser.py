@@ -122,6 +122,22 @@ class Parser:
         return struct.calcsize(cls.struct_addr)
 
     @classmethod
+    def init_protocol(cls, protocol):
+        protocol = cls.convert_to_dict(protocol)
+        protocol = cls.recovery_contraction(protocol)
+        return protocol
+
+    @classmethod
+    def convert_to_dict(cls, protocol):
+        for key in ['packages', 'markers', 'lists', 'contraction']:
+            items_list = protocol[key]
+            items_dict = {}
+            for item in items_list:
+                items_dict[item['name']] = item
+            protocol[key] = items_dict
+        return protocol
+
+    @classmethod
     def recovery_contraction(cls, protocol):
         def get_define_name_list(package_protocol):
             if isinstance(package_protocol['define'], list):
@@ -137,7 +153,6 @@ class Parser:
                 return items[: place] + contraction_items['structure'] + items[place+1: ]
             else:
                 return contraction_items['structure']
-
 
         def recovery_define(package_protocol, found_define_contraction):
             for contraction_name in found_define_contraction:
