@@ -74,7 +74,13 @@ class Handler:
                 logger.info('define_func {} is not implemented'.format(define_func_name))
                 return False
             define_func = getattr(self, define_func_name)
-            # print('>>> ', self.package_protocol['name'], define_func_name, define_func())
+
+            logger.debug(
+                'protocol {}, define_func_name {}, result - {}'.format(
+                    self.package_protocol['name'],
+                    define_func_name,
+                    define_func()))
+
             if not define_func() is True:
                 return False
         return True

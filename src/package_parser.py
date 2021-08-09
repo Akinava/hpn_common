@@ -9,6 +9,7 @@ __version__ = [0, 0]
 import struct
 import time
 from utilit import NULL
+from settings import logger
 
 
 class Parser:
@@ -37,16 +38,20 @@ class Parser:
     def set_connection(self, connection):
         self.connection = connection
 
-    def unpack_package(self, data=None, package_protocol_name=None):
-        if data is None:
-            data = self.connection.get_request()
-        if package_protocol_name is None:
-            package_structure = self.package_protocol['structure']
-        else:
-            package_structure = self.__protocol['packages'][package_protocol_name]['structure']
-
+    def debug_unpack_package(self, data=None, package_protocol_name=None):
+        package_protocol = self.__protocol['packages'][package_protocol_name]
         package = {}
-        for part_structure in package_structure:
+        for part_structure in package_protocol['structure']:
+            part_data, data = self.__unpack_stream(data, part_structure['length'])
+            part_package = self.unpack_type(part_data, part_structure)
+            package.update(part_package)
+        logger.debug(package)
+
+    def unpack_package(self):
+        # TODO the cache doesn't work, needs to be investigate why / self.get_package_cache self.put_package_cache
+        package = {}
+        data = self.connection.get_request()
+        for part_structure in self.package_protocol['structure']:
             part_data, data = self.__unpack_stream(data, part_structure['length'])
             part_package = self.unpack_type(part_data, part_structure)
             package.update(part_package)
@@ -68,10 +73,8 @@ class Parser:
         part_type = part_structure.get('type', NULL())
         if part_type is NULL():
             return {part_name: part_data}
-
         set_type_function = getattr(self, 'unpack_{}'.format(part_type))
         package_data = set_type_function(part_name=part_name, part_data=part_data)
-
         if isinstance(package_data, dict):
             return package_data
         return {part_name: package_data}
@@ -200,15 +203,31 @@ class Parser:
     def unpack_multiple_marker(self, part_name_list, markers_data):
         unpack_package = {}
         for marker_name in part_name_list:
-            marker_structure = self.__get_marker_description(marker_name)
-            marker_data = self.__split_markers(marker_structure, markers_data)
-            unpack_package[marker_name] = marker_data
+            marker_data_int = self.__split_markers(marker_name, markers_data)
+            unpack_package[marker_name] = self.set_marker_type(marker_name, marker_data_int)
         return unpack_package
 
     def unpack_single_marker(self, marker_name, marker_data):
-        return {marker_name: self.unpack_int(part_data=marker_data)}
+        marker_data = self.unpack_int(part_data=marker_data)
+        marker_data_int = self.unpack_int(part_data=marker_data)
+        return {marker_name: self.set_marker_type(marker_name, marker_data_int)}
 
-    def __split_markers(self, marker_structure, markers_data):
+    def set_marker_type(self, marker_name, marker_data):
+        marker_structure = self.__get_marker_description(marker_name)
+        marker_type = marker_structure.get('type', NULL())
+        if marker_type is NULL():
+            return marker_data
+        set_type_function = getattr(self, 'unpack_{}'.format(marker_type))
+        return set_type_function(part_data=marker_data)
+
+    def unpack_int_marker(self, **kwargs):
+        return kwargs['part_data']
+
+    def unpack_bool_marker(self, **kwargs):
+        return kwargs['part_data'] == 1
+
+    def __split_markers(self, marker_name, markers_data):
+        marker_structure = self.__get_marker_description(marker_name)
         markers_data_length = len(markers_data)
         marker_mask = self.__make_mask(
             marker_structure['start_bit'],

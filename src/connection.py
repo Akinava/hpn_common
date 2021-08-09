@@ -91,10 +91,12 @@ class Connection:
         return (self.__remote_host, self.__remote_port)
 
     def set_encrypt_marker(self, encrypt_marker):
-        self.__encrypt_marker = encrypt_marker
+        self._encrypt_marker = encrypt_marker
 
     def get_encrypt_marker(self):
-        return self.__encrypt_marker
+        if not hasattr(self, '_encrypt_marker'):
+            return settings.request_encrypted_protocol
+        return self._encrypt_marker
 
     def send(self, response):
         self.transport.sendto(response, (self.__remote_host, self.__remote_port))
