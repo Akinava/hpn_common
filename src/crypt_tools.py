@@ -118,13 +118,13 @@ class Tools(Singleton):
         message = kwargs['message']
         logger.debug('connection.get_encrypt_marker {}'.format(connection.get_encrypt_marker()))
         if package_protocol['encrypted'] is False and package_protocol['signed'] is False:
-            logger.debug('package is not encrypted')
+            logger.debug('message is not encrypted')
             return message
         if connection.get_encrypt_marker() is True and package_protocol['encrypted'] is True:
-            logger.debug('package is encrypted')
+            logger.debug('message is encrypted')
             return self.encrypt(message, connection.get_pub_key())
         if package_protocol['signed'] is True or package_protocol['encrypted'] is True:
-            logger.debug('package is signed')
+            logger.debug('message is signed')
             return self.sign(message)
 
     def unpack_datagram(self, connection):

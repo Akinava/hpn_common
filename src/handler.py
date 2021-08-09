@@ -46,7 +46,6 @@ class Handler:
         logger.info('')
 
     def __handle(self):
-        logger.debug('')
         # TODO make a tread
         self.__define_package()
         if self.package_protocol is None:
@@ -57,7 +56,6 @@ class Handler:
         return response_function()
 
     def __define_package(self):
-        logger.debug('')
         for package_protocol in self.protocol['packages'].values():
             self.package_protocol = package_protocol
             self.parser.set_package_protocol(package_protocol)
@@ -114,7 +112,7 @@ class Handler:
         return message
 
     def send(self, **kwargs):
-        logger.info('decrypted response %s' % (kwargs['message'].hex()))
+        logger.info('decrypted_message %s' % (kwargs['message'].hex()))
         if 'connection' not in kwargs:
             kwargs['connection'] = self.connection
         kwargs['package_protocol'] = self.protocol['packages'][kwargs['package_protocol_name']]
