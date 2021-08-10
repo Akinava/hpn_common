@@ -68,17 +68,6 @@ class Parser:
             return unpack_data
         return {part_name: unpack_data}
 
-    def set_type(self, part_data, part_structure):
-        part_name = part_structure['name']
-        part_type = part_structure.get('type', NULL())
-        if part_type is NULL():
-            return {part_name: part_data}
-        set_type_function = getattr(self, 'unpack_{}'.format(part_type))
-        package_data = set_type_function(part_name=part_name, part_data=part_data)
-        if isinstance(package_data, dict):
-            return package_data
-        return {part_name: package_data}
-
     def unpack_timestamp(self, **kwargs):
         return self.unpack_int(**kwargs)
 

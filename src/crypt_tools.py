@@ -114,7 +114,7 @@ class Tools(Singleton):
 
     def encrypt_message(self, **kwargs):
         package_protocol = kwargs['package_protocol']
-        connection = kwargs['connection']
+        connection = kwargs['receiving_connection']
         message = kwargs['message']
         logger.debug('connection.get_encrypt_marker {}'.format(connection.get_encrypt_marker()))
         if package_protocol['encrypted'] is False and package_protocol['signed'] is False:
@@ -142,6 +142,8 @@ class Tools(Singleton):
         return True
 
     def __decrypt_request(self, connection):
+        # FIXME if connection doesn't have a pub_key the message should be storage on a ping time.
+        # FIXME thread for checking old message should be run every event => handler.datagram_received
         shared_key = self.get_shared_key_ecdh(connection.get_pub_key())
         datagram = self.aes_decode(shared_key, connection.get_request())
         logger.info('%s' % (datagram.hex()))

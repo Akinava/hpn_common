@@ -64,7 +64,7 @@ PROTOCOL = {
             'signed': True,
             'structure': [
                 {'name': 'ctr_structure_protocol_version_id_marker_receiver_fingerprint_timestamp', 'type': 'contraction'},
-                {'name': 'sstn_list', 'type': 'list'}]}
+                {'name': 'hpn_servers_list', 'type': 'list'}]}
     ],
     'markers': [
         {'name': 'encrypted_request_marker', 'start_bit': 0, 'length': 1, 'type': 'bool_marker'},
@@ -74,12 +74,12 @@ PROTOCOL = {
     ],
     'lists': [
         {
-            'name': 'sstn_list',
+            'name': 'hpn_servers_list',
             'length': {'min': 1, 'max': 10},
             'structure': [
-                {'name': 'sstn_pub_key', 'length': CryptTools.pub_key_length},
-                {'name': 'sstn_type', 'length': 1},
-                {'name': 'sstn_addr', 'length': Parser.get_packed_addr_length()}]}
+                {'name': 'hpn_servers_pub_key', 'length': CryptTools.pub_key_length},
+                {'name': 'hpn_servers_type', 'length': 1, 'type': 'hpn_servers_type'},
+                {'name': 'hpn_servers_addr', 'length': Parser.get_packed_addr_length()}]}
     ],
     'contraction': [
         {

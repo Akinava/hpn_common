@@ -98,6 +98,7 @@ class Handler:
         return getattr(self, response_function_name)
 
     def make_message(self, **kwargs):
+        logger.debug('name - {}'.format(kwargs['package_name']))
         message = b''
         package_structure = self.protocol['packages'][kwargs['package_name']]['structure']
         for part_structure in package_structure:
@@ -113,17 +114,17 @@ class Handler:
 
     def send(self, **kwargs):
         logger.info('decrypted_message %s' % (kwargs['message'].hex()))
-        if 'connection' not in kwargs:
-            kwargs['connection'] = self.connection
+        if 'receiving_connection' not in kwargs:
+            kwargs['receiving_connection'] = self.connection
         kwargs['package_protocol'] = self.protocol['packages'][kwargs['package_protocol_name']]
         encrypted_message = self.crypt_tools.encrypt_message(**kwargs)
-        kwargs['connection'].send(encrypted_message)
+        kwargs['receiving_connection'].send(encrypted_message)
 
     def hpn_ping(self):
-        message = self.parser.pack_int(int(time.time()) & 0xff, 1)
         self.send(
-            message=message,
-            package_protocol_name='hpn_ping')
+            package_protocol_name='hpn_ping',
+            message=self.parser.pack_int(int(time.time()) & 0xff, 1)
+        )
 
     def define_hpn_ping(self):
         value = self.parser.unpack_int(part_data=self.connection.get_request())
@@ -161,7 +162,7 @@ class Handler:
         return my_fingerprint_from_request == my_fingerprint_reference
 
     def get_receiver_fingerprint(self, **kwargs):
-        return kwargs['receiver_connection'].get_fingerprint()
+        return kwargs.get('receiving_connection', self.connection).get_fingerprint()
 
     def get_timestamp(self, **kwargs):
         return self.parser.pack_timestamp()
