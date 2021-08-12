@@ -120,12 +120,12 @@ class Parser:
 
     @classmethod
     def init_protocol(cls, protocol):
-        protocol = cls.convert_to_dict(protocol)
-        protocol = cls.recovery_contraction(protocol)
+        protocol = cls.convert_protocol_to_dict(protocol)
+        protocol = cls.recovery_protocol_contraction(protocol)
         return protocol
 
     @classmethod
-    def convert_to_dict(cls, protocol):
+    def convert_protocol_to_dict(cls, protocol):
         for key in ['packages', 'markers', 'lists', 'contraction']:
             items_list = protocol[key]
             items_dict = {}
@@ -135,7 +135,7 @@ class Parser:
         return protocol
 
     @classmethod
-    def recovery_contraction(cls, protocol):
+    def recovery_protocol_contraction(cls, protocol):
         def get_define_name_list(package_protocol):
             if isinstance(package_protocol['define'], list):
                 return package_protocol['define']

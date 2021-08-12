@@ -130,9 +130,9 @@ class Tools(Singleton):
     def unpack_datagram(self, connection):
         if not self.__is_encrypted(connection):
             logger.debug('request is not encrypted')
-            return
+            return True
         logger.debug('request is decrypt')
-        self.__decrypt_request(connection)
+        return self.__decrypt_request(connection)
 
     def __is_encrypted(self, connection):
         if len(connection.get_request()) <= AES.bs:
@@ -144,7 +144,12 @@ class Tools(Singleton):
     def __decrypt_request(self, connection):
         # FIXME if connection doesn't have a pub_key the message should be storage on a ping time.
         # FIXME thread for checking old message should be run every event => handler.datagram_received
+        pub_key = connection.get_pub_key()
+        if pub_key is None:
+            connection.save_message(connection.get_request())
+            return False
         shared_key = self.get_shared_key_ecdh(connection.get_pub_key())
         datagram = self.aes_decode(shared_key, connection.get_request())
         logger.info('%s' % (datagram.hex()))
         connection.set_request(datagram)
+        return True

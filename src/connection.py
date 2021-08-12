@@ -12,6 +12,7 @@ from settings import logger
 from crypt_tools import Tools as CryptTools
 from net_pool import NetPool
 from utilit import NULL
+from utilit import check_border_timestamp
 
 
 class Connection:
@@ -25,6 +26,7 @@ class Connection:
             self.__set_remote_addr(remote_addr)
         self.sent_message_time = None
         NetPool().save_connection(self)
+        self.message_cache = []
 
     def __eq__(self, connection):
         if self.__remote_host != connection.__remote_host:
@@ -78,11 +80,13 @@ class Connection:
         self.__set_time_received_message()
 
     def set_pub_key(self, pub_key):
-        self.__pub_key = pub_key
+        self._pub_key = pub_key
         self.__fingerprint = CryptTools().make_fingerprint(pub_key)
 
     def get_pub_key(self):
-        return self.__pub_key
+        if not hasattr(self, '_pub_key'):
+            return None
+        return self._pub_key
 
     def get_fingerprint(self):
         return self.__fingerprint
@@ -97,6 +101,21 @@ class Connection:
         if not hasattr(self, '_encrypt_marker'):
             return settings.request_encrypted_protocol
         return self._encrypt_marker
+
+    def save_message(self, message):
+        logger.debug('')
+        self.message_cache.append(
+            {'time': time(),
+             'message': message})
+
+    def pop_message_cache(self):
+        logger.debug('')
+        while self.message_cache:
+            message_cache = self.message_cache.pop()
+            if check_border_timestamp(message_cache['time']):
+                self.__request = message_cache['message']
+                return True
+        return False
 
     def send(self, response):
         self.transport.sendto(response, (self.__remote_host, self.__remote_port))

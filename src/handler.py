@@ -12,7 +12,7 @@ import settings
 from crypt_tools import Tools as CryptTools
 from package_parser import Parser
 from connection import Connection, NetPool
-from utilit import check_border_with_over_flow
+from utilit import check_border_with_over_flow, check_border_timestamp
 
 
 class Handler:
@@ -39,21 +39,27 @@ class Handler:
             request=request
         )
         self.parser.set_connection(self.connection)
-        self.crypt_tools.unpack_datagram(self.connection)
-        self.__handle()
+        if self.crypt_tools.unpack_datagram(self.connection):
+            # TODO put in a tread below lines
+            self.__handle()
+            self.__read_connection_message_cache()
+
+    def __read_connection_message_cache(self):
+        logger.debug('')
+        while self.connection.pop_message_cache():
+            self.__handle()
 
     def connection_lost(self, remote_addr):
         logger.info('')
 
     def __handle(self):
-        # TODO make a tread
         self.__define_package()
         if self.package_protocol is None:
             return
         response_function = self.__get_response_function()
         if response_function is None:
             return
-        return response_function()
+        response_function()
 
     def __define_package(self):
         for package_protocol in self.protocol['packages'].values():
@@ -113,6 +119,7 @@ class Handler:
         return message
 
     def send(self, **kwargs):
+        # TODO make a tread / reason some of the message can me too long and time consuming
         logger.info('decrypted_message %s' % (kwargs['message'].hex()))
         if 'receiving_connection' not in kwargs:
             kwargs['receiving_connection'] = self.connection
@@ -151,10 +158,7 @@ class Handler:
 
     def verify_timestamp(self):
         timestamp = self.parser.get_part('timestamp')
-        return self.check_border_timestamp(timestamp)
-
-    def check_border_timestamp(self, timestamp):
-        return time.time() - settings.peer_ping_time_seconds < timestamp < time.time() + settings.peer_ping_time_seconds
+        return check_border_timestamp(timestamp)
 
     def verify_receiver_fingerprint(self, **kwargs):
         my_fingerprint_from_request = self.parser.get_part('receiver_fingerprint')

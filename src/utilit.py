@@ -9,6 +9,7 @@ __version__ = [0, 0]
 import json
 import sys
 from datetime import datetime
+from time import time
 import logging
 import settings
 import get_args
@@ -53,6 +54,9 @@ def check_border_with_over_flow(min, max, value):
     if min < max:
         return min < value < max
     return value > min or max > value
+
+def check_border_timestamp(timestamp):
+    return time() - settings.peer_ping_time_seconds < timestamp < time() + settings.peer_ping_time_seconds
 
 def read_config_file():
     with open(settings.config_file, 'r') as cfg_file:
