@@ -40,7 +40,7 @@ class Handler:
         )
         self.parser.set_connection(self.connection)
         if self.crypt_tools.unpack_datagram(self.connection):
-            # TODO put in a tread below lines
+            # FIXME put in a tread below lines
             self.__handle()
             self.__read_connection_message_cache()
 
@@ -119,7 +119,7 @@ class Handler:
         return message
 
     def send(self, **kwargs):
-        # TODO make a tread / reason some of the message can me too long and time consuming
+        # FIXME make a tread / reason some of the message can be too long and time consuming
         logger.info('decrypted_message %s' % (kwargs['message'].hex()))
         if 'receiving_connection' not in kwargs:
             kwargs['receiving_connection'] = self.connection

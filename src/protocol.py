@@ -97,5 +97,11 @@ PROTOCOL = {
                 {'name': 'package_id_marker', 'length': 1,  'type': 'int'},
                 {'name': 'receiver_fingerprint', 'length': CryptTools.fingerprint_length},
                 {'name': 'timestamp', 'length': 4, 'type': 'timestamp'}]}
+    ],
+    'mapping': [
+        {'name': 'hpn_servers_type',
+         'structure':
+             {'udp': 1}
+         }
     ]
 }

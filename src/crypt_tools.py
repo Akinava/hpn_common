@@ -142,8 +142,6 @@ class Tools(Singleton):
         return True
 
     def __decrypt_request(self, connection):
-        # FIXME if connection doesn't have a pub_key the message should be storage on a ping time.
-        # FIXME thread for checking old message should be run every event => handler.datagram_received
         pub_key = connection.get_pub_key()
         if pub_key is None:
             connection.save_message(connection.get_request())

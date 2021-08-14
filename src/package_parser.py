@@ -48,7 +48,7 @@ class Parser:
         logger.debug(package)
 
     def unpack_package(self):
-        # TODO the cache doesn't work, needs to be investigate why / self.get_package_cache self.put_package_cache
+        # FIXME the cache doesn't work, needs to be investigate why / self.get_package_cache self.put_package_cache
         package = {}
         data = self.connection.get_request()
         for part_structure in self.package_protocol['structure']:
@@ -90,6 +90,13 @@ class Parser:
         port = res[4]
         return (host, port)
 
+    def pack_servers_list(self, server_data):
+        data = self.pack_self_defined_int(len(server_data))
+        # TODO
+        print('>>>', data, server_data)
+        exit()
+
+
     def get_part(self, name, package_protocol=None):
         self.set_package_protocol(package_protocol)
         return self.unpack_package().get(name, NULL())
@@ -126,7 +133,7 @@ class Parser:
 
     @classmethod
     def convert_protocol_to_dict(cls, protocol):
-        for key in ['packages', 'markers', 'lists', 'contraction']:
+        for key in ['packages', 'markers', 'lists', 'contraction', 'mapping']:
             items_list = protocol[key]
             items_dict = {}
             for item in items_list:
@@ -252,13 +259,25 @@ class Parser:
         return data[: length], data[length:]
 
     def unpack_self_defined_int(self, data):
-        size = data[0]  # binary convert to int by magic ¯\_(ツ)_/¯
+        number = data[0]  # binary convert to int by magic ¯\_(ツ)_/¯
         data = data[1:]
-        if size <= 0xfc:
-            return size, data
-        if size == 0xfd:
+        if number <= 0xfc:
+            return number, data
+        if number == 0xfd:
             return self.unpack_int(part_data=data[:2]), data[2:]
-        if size == 0xfe:
+        if number == 0xfe:
             return self.unpack_int(part_data=data[:4]), data[4:]
-        if size == 0xff:
+        if number == 0xff:
             return self.unpack_int(part_data=data[:8]), data[8:]
+
+    def pack_self_defined_int(self, number):
+        if number <= 0xfc:
+            return self.pack_int(data=number, size=1)
+        if number <= (1 << (8*2))-1:
+            return self.pack_int(data=0xfd, size=1) + self.pack_int(data=number, size=2)
+        if number <= (1 << (8*4))-1:
+            return self.pack_int(data=0xfe, size=1) + self.pack_int(data=number, size=4)
+        if number <= (1 << (8*8))-1:
+            return self.pack_int(data=0xff, size=1) + self.pack_int(data=number, size=8)
+
+
