@@ -52,7 +52,13 @@ class Parser:
         package = {}
         data = self.connection.get_request()
         for part_structure in self.package_protocol['structure']:
-            part_data, data = self.__unpack_stream(data, part_structure['length'])
+            if part_structure.get('type', NULL()) == 'list':
+                list_length, data = self.unpack_self_defined_int(data)
+                list_structure_size = self.calc_list_structure_size(part_structure['name'])
+                length = list_length * list_structure_size
+            else:
+                length = part_structure['length']
+            part_data, data = self.__unpack_stream(data, length)
             part_package = self.unpack_type(part_data, part_structure)
             package.update(part_package)
         return package
@@ -67,6 +73,30 @@ class Parser:
         if isinstance(unpack_data, dict):
             return unpack_data
         return {part_name: unpack_data}
+
+    def unpack_list(self, **kwargs):
+        structure = self.__protocol['lists'][kwargs['part_name']]['structure']
+        data = kwargs['part_data']
+        unpack_data_list = []
+        while data:
+            unpack_data_item = {}
+            for part_structure in structure:
+                length = part_structure['length']
+                part_data, data = self.__unpack_stream(data, length)
+                part_package = self.unpack_type(part_data, part_structure)
+                unpack_data_item.update(part_package)
+            unpack_data_list.append(unpack_data_item)
+        return {kwargs['part_name']: unpack_data_list}
+
+    def unpack_hpn_servers_protocol(self, **kwargs):
+        int_data, _ = self.unpack_self_defined_int(kwargs['part_data'])
+        unpack_data = self.unpack_mapping('hpn_servers_protocol', int_data)
+        return {'kwargs': unpack_data}
+
+    def unpack_mapping(self, mapping_name, mapping_data):
+        structure = self.__protocol['mapping'][mapping_name]['structure']
+        inv_structure = {v: k for k, v in structure.items()}
+        return inv_structure[mapping_data]
 
     def unpack_timestamp(self, **kwargs):
         return self.unpack_int(**kwargs)
@@ -109,10 +139,14 @@ class Parser:
 
     def calc_list_length(self, list_name, skip_bytes):
         data = self.connection.get_request()[skip_bytes:]
-        size, _ = self.unpack_self_defined_int(data)
+        size, rest = self.unpack_self_defined_int(data)
+        size_bytes = len(data) - len(rest)
+        list_structure_length = self.calc_list_structure_size(list_name)
+        return size * list_structure_length + size_bytes
+
+    def calc_list_structure_size(self, list_name):
         list_structure = self.__protocol['lists'][list_name]['structure']
-        list_structure_length = self.calc_structure_length(structure=list_structure)
-        return size * list_structure_length
+        return self.calc_structure_length(structure=list_structure)
 
     @classmethod
     def get_packed_addr_length(cls):

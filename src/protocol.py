@@ -62,6 +62,7 @@ PROTOCOL = {
             'define': 'ctr_verify_len_ver_id_marker_timestamp_receiver_fingerprint',
             'encrypted': True,
             'signed': True,
+            'response': 'save_hpn_servers_list',
             'structure': [
                 {'name': 'ctr_structure_protocol_version_id_marker_receiver_fingerprint_timestamp', 'type': 'contraction'},
                 {'name': 'hpn_servers_list', 'type': 'list'}]}
