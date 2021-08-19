@@ -90,13 +90,6 @@ class Parser:
         port = res[4]
         return (host, port)
 
-    def pack_servers_list(self, server_data):
-        data = self.pack_self_defined_int(len(server_data))
-        # TODO
-        print('>>>', data, server_data)
-        exit()
-
-
     def get_part(self, name, package_protocol=None):
         self.set_package_protocol(package_protocol)
         return self.unpack_package().get(name, NULL())
@@ -248,6 +241,10 @@ class Parser:
             if marker_description['name'] == marker_name:
                 return marker_description
         raise Exception('Error: no description for marker {}'.format(marker_name))
+
+    def pack_mapping(self, mapping_name, mapping_data):
+        structure = self.__protocol['mapping'][mapping_name]['structure']
+        return self.pack_self_defined_int(structure[mapping_data])
 
     def unpack_int(self, **kwargs):
         return struct.unpack('>' + self.struct_length[len(kwargs['part_data'])], kwargs['part_data'])[0]

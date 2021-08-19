@@ -104,10 +104,14 @@ class Handler:
         return getattr(self, response_function_name)
 
     def make_message(self, **kwargs):
-        logger.debug('name - {}'.format(kwargs['package_name']))
+        if 'structure' in kwargs:
+            structure = kwargs['structure']
+        else:
+            logger.debug('name - {}'.format(kwargs['package_name']))
+            structure = self.protocol['packages'][kwargs['package_name']]['structure']
+
         message = b''
-        package_structure = self.protocol['packages'][kwargs['package_name']]['structure']
-        for part_structure in package_structure:
+        for part_structure in structure:
             if part_structure.get('type') == 'markers':
                 build_part_message_function = self.get_markers
                 kwargs['markers'] = part_structure

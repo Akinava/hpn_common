@@ -75,11 +75,11 @@ PROTOCOL = {
     'lists': [
         {
             'name': 'hpn_servers_list',
-            'length': {'min': 1, 'max': 10},
+            'length': {'max': 10},
             'structure': [
                 {'name': 'hpn_servers_pub_key', 'length': CryptTools.pub_key_length},
-                {'name': 'hpn_servers_type', 'length': 1, 'type': 'hpn_servers_type'},
-                {'name': 'hpn_servers_addr', 'length': Parser.get_packed_addr_length()}]}
+                {'name': 'hpn_servers_protocol', 'length': 1, 'type': 'hpn_servers_protocol'},
+                {'name': 'hpn_servers_addr', 'length': Parser.get_packed_addr_length(), 'type': 'addr'}]}
     ],
     'contraction': [
         {
@@ -99,7 +99,7 @@ PROTOCOL = {
                 {'name': 'timestamp', 'length': 4, 'type': 'timestamp'}]}
     ],
     'mapping': [
-        {'name': 'hpn_servers_type',
+        {'name': 'hpn_servers_protocol',
          'structure':
              {'udp': 1}
          }
