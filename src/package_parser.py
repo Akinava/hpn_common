@@ -91,7 +91,7 @@ class Parser:
     def unpack_hpn_servers_protocol(self, **kwargs):
         int_data, _ = self.unpack_self_defined_int(kwargs['part_data'])
         unpack_data = self.unpack_mapping('hpn_servers_protocol', int_data)
-        return {'kwargs': unpack_data}
+        return {kwargs['part_name']: unpack_data}
 
     def unpack_mapping(self, mapping_name, mapping_data):
         structure = self.__protocol['mapping'][mapping_name]['structure']
