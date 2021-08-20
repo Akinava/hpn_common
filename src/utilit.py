@@ -10,6 +10,7 @@ import json
 import sys
 from datetime import datetime
 from time import time
+import threading
 import logging
 import settings
 import get_args
@@ -27,6 +28,12 @@ class Singleton(object):
 
     def __skip_init__(self, *args, **kwargs):
         return
+
+
+class Stream:
+    def run_stream(self, target, **kwargs):
+        t = threading.Thread(target=target, kwargs=kwargs, daemon=True)
+        t.start()
 
 
 class NULL(Singleton):

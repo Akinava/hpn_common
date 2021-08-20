@@ -63,6 +63,9 @@ class Connection:
         else:
             self.sent_message_time = sent_message_time
 
+    def get_time_received_message(self):
+            return self.__received_message_time
+
     def __set_time_received_message(self):
         self.__received_message_time = time()
 
@@ -120,7 +123,7 @@ class Connection:
     def send(self, response):
         self.transport.sendto(response, (self.__remote_host, self.__remote_port))
         self.set_time_sent_message()
-        logger.info('%s to %s' % (response.hex(), (self.__remote_host, self.__remote_port)))
+        logger.info('{} to {}'.format(response.hex(), (self.__remote_host, self.__remote_port)))
 
     def shutdown(self):
         if self.transport.is_closing():

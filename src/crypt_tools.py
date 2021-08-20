@@ -148,6 +148,6 @@ class Tools(Singleton):
             return False
         shared_key = self.get_shared_key_ecdh(connection.get_pub_key())
         datagram = self.aes_decode(shared_key, connection.get_request())
-        logger.info('%s' % (datagram.hex()))
+        logger.info('{}'.format(datagram.hex()))
         connection.set_request(datagram)
         return True

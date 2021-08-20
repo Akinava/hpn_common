@@ -12,10 +12,10 @@ import settings
 from crypt_tools import Tools as CryptTools
 from package_parser import Parser
 from connection import Connection, NetPool
-from utilit import check_border_with_over_flow, check_border_timestamp
+from utilit import check_border_with_over_flow, check_border_timestamp, Stream
 
 
-class Handler:
+class Handler(Stream):
     def __init__(self, protocol, message=None, on_con_lost=None, connection=None):
         logger.debug('')
         self.net_pool = NetPool()
@@ -32,7 +32,7 @@ class Handler:
         self.transport = transport
 
     def datagram_received(self, request, remote_addr):
-        logger.info('%s from %s' % (request.hex(), remote_addr))
+        logger.info('{} from {}'.format(request.hex(), remote_addr))
         self.connection = Connection(
             remote_addr=remote_addr,
             transport=self.transport,
@@ -40,9 +40,14 @@ class Handler:
         )
         self.parser.set_connection(self.connection)
         if self.crypt_tools.unpack_datagram(self.connection):
-            # FIXME put in a tread below lines
-            self.__handle()
-            self.__read_connection_message_cache()
+            self.__thread_processing_message()
+
+    def __processing_message(self):
+        self.__handle()
+        self.__read_connection_message_cache()
+
+    def __thread_processing_message(self):
+        self.run_stream(target=self.__processing_message)
 
     def __read_connection_message_cache(self):
         logger.debug('')
@@ -79,11 +84,11 @@ class Handler:
                 return False
             define_func = getattr(self, define_func_name)
 
-            logger.debug(
-                'protocol {}, define_func_name {}, result - {}'.format(
-                    self.package_protocol['name'],
-                    define_func_name,
-                    define_func()))
+            # logger.debug(
+            #     'protocol {}, define_func_name {}, result - {}'.format(
+            #         self.package_protocol['name'],
+            #         define_func_name,
+            #         define_func()))
 
             if not define_func() is True:
                 return False
@@ -118,13 +123,19 @@ class Handler:
             else:
                 build_part_message_function = getattr(self, 'get_{}'.format(part_structure['name']))
 
-            logger.debug('build part {}'.format(part_structure['name']))
+            # logger.debug('build part {}'.format(part_structure['name']))
             message += build_part_message_function(**kwargs)
         return message
 
     def send(self, **kwargs):
-        # FIXME make a tread / reason some of the message can be too long and time consuming
-        logger.info('decrypted_message %s' % (kwargs['message'].hex()))
+        # reason some of the message can be too long and time consuming
+        self.run_stream(
+            target=self.thread_send,
+            **kwargs
+        )
+
+    def thread_send(self, **kwargs):
+        logger.info('decrypted_message {} {}'.format(kwargs['package_protocol_name'], kwargs['message'].hex()))
         if 'receiving_connection' not in kwargs:
             kwargs['receiving_connection'] = self.connection
         kwargs['package_protocol'] = self.protocol['packages'][kwargs['package_protocol_name']]
