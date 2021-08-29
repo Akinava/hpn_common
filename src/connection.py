@@ -17,7 +17,7 @@ from utilit import check_border_timestamp
 
 class Connection:
     def __init__(self, remote_addr=None, transport=None, request=None):
-        logger.info('')
+        #logger.info('')
         self.transport = transport
         self.__set_time_received_message()
         if request:
@@ -26,7 +26,7 @@ class Connection:
             self.__set_remote_addr(remote_addr)
         self.sent_message_time = None
         NetPool().save_connection(self)
-        self.message_cache = []
+
 
     def __eq__(self, connection):
         if self.__remote_host != connection.__remote_host:
@@ -83,6 +83,8 @@ class Connection:
         self.__set_time_received_message()
 
     def set_pub_key(self, pub_key):
+        if pub_key is None:
+            return
         self._pub_key = pub_key
         self.__fingerprint = CryptTools().make_fingerprint(pub_key)
 
@@ -105,25 +107,15 @@ class Connection:
             return settings.request_encrypted_protocol
         return self._encrypt_marker
 
-    def save_message(self, message):
-        logger.debug('')
-        self.message_cache.append(
-            {'time': time(),
-             'message': message})
+    def set_unpack_request(self, unpack_request):
+        self.unpack_request = unpack_request
 
-    def pop_message_cache(self):
-        logger.debug('')
-        while self.message_cache:
-            message_cache = self.message_cache.pop()
-            if check_border_timestamp(message_cache['time']):
-                self.__request = message_cache['message']
-                return True
-        return False
+    def get_unpack_request(self):
+        return self.unpack_request
 
     def send(self, response):
         self.transport.sendto(response, (self.__remote_host, self.__remote_port))
         self.set_time_sent_message()
-        logger.info('{} to {}'.format(response.hex(), (self.__remote_host, self.__remote_port)))
 
     def shutdown(self):
         if self.transport.is_closing():

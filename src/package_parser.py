@@ -25,32 +25,50 @@ class Parser:
         self.__protocol = protocol
 
     def set_package_protocol(self, package_protocol):
-        if package_protocol is None:
-            return
-        self.package_protocol = package_protocol
-
-    def find_protocol_package(self, package_name):
-        protocol_package = self.__protocol['packages'].get(package_name)
-        if protocol_package is None:
-            raise Exception('Error: no protocol with the name {}'.format(package_name))
-        return protocol_package
+        if package_protocol is not None:
+            self.package_protocol = package_protocol
 
     def set_connection(self, connection):
-        self.connection = connection
+        if connection is not None:
+            self.connection = connection
 
-    def debug_unpack_package(self, data=None, package_protocol_name=None):
-        package_protocol = self.__protocol['packages'][package_protocol_name]
-        package = {}
-        for part_structure in package_protocol['structure']:
-            part_data, data = self.__unpack_stream(data, part_structure['length'])
+    def find_package_structure(self, **kwargs):
+        if 'package_structure' in kwargs:
+            return kwargs['package_structure']
+        if 'package_protocol_name' in kwargs:
+            return self.find_package_protocol(kwargs['package_protocol_name'])['structure']
+        raise Exception('Error: no required variables in kwargs {}'.format(kwargs))
+
+    def find_package_protocol(self, package_protocol_name):
+        package_protocol = self.__protocol['packages'].get(package_protocol_name)
+        if package_protocol is None:
+            raise Exception('Error: no protocol with the name {}'.format(package_protocol_name))
+        return package_protocol
+
+    def debug_unpack_package(self, message, package_protocol, connection):
+        connection.set_request(message)
+        self.set_package_protocol(package_protocol)
+        self.set_connection(connection)
+        unpack_request = {}
+        for part_structure in self.package_protocol['structure']:
+            part_data, data = self.__unpack_stream(message, part_structure['length'])
             part_package = self.unpack_type(part_data, part_structure)
-            package.update(part_package)
-        logger.debug(package)
+            unpack_request.update(part_package)
 
-    def unpack_package(self):
-        # FIXME the cache doesn't work, needs to be investigate why / self.get_package_cache self.put_package_cache
-        package = {}
+        for k, v in unpack_request.items():
+            if isinstance(v, bytes):
+                unpack_request[k] = v.hex()
+
+        logger.debug('package {} send to {} package_structure {}'.format(
+            self.package_protocol['name'],
+            connection,
+            unpack_request))
+
+    def unpack_package(self, package_protocol, connection):
+        self.set_package_protocol(package_protocol)
+        self.set_connection(connection)
         data = self.connection.get_request()
+        unpack_request = {}
         for part_structure in self.package_protocol['structure']:
             if part_structure.get('type', NULL()) == 'list':
                 list_length, data = self.unpack_self_defined_int(data)
@@ -60,8 +78,8 @@ class Parser:
                 length = part_structure['length']
             part_data, data = self.__unpack_stream(data, length)
             part_package = self.unpack_type(part_data, part_structure)
-            package.update(part_package)
-        return package
+            unpack_request.update(part_package)
+        return unpack_request
 
     def unpack_type(self, part_data, part_structure):
         part_type = part_structure.get('type', NULL())
@@ -93,6 +111,9 @@ class Parser:
         unpack_data = self.unpack_mapping('hpn_servers_protocol', int_data)
         return {kwargs['part_name']: unpack_data}
 
+    def unpack_hpn_ping(self, part_name, part_data):
+        return {'ping': part_data}
+
     def unpack_mapping(self, mapping_name, mapping_data):
         structure = self.__protocol['mapping'][mapping_name]['structure']
         inv_structure = {v: k for k, v in structure.items()}
@@ -120,19 +141,20 @@ class Parser:
         port = res[4]
         return (host, port)
 
-    def get_part(self, name, package_protocol=None):
+    def get_part(self, name, package_protocol):
         self.set_package_protocol(package_protocol)
         return self.unpack_package().get(name, NULL())
 
-    def calc_structure_length(self, structure=None):
-        if structure is None:
-            structure = self.package_protocol['structure']
+    def calc_structure_length(self, package_structure, connection=None):
+        self.set_connection(connection)
         length = 0
-        for part in structure:
+        for part in package_structure:
             if length > len(self.connection.get_request()):
                 return None
             if part.get('type') == 'list':
-                length += self.calc_list_length(part['name'], length)
+                length += self.calc_list_length(
+                    list_name=part['name'],
+                    skip_bytes=length)
                 continue
             length += part['length']
         return length
@@ -146,7 +168,7 @@ class Parser:
 
     def calc_list_structure_size(self, list_name):
         list_structure = self.__protocol['lists'][list_name]['structure']
-        return self.calc_structure_length(structure=list_structure)
+        return self.calc_structure_length(package_structure=list_structure)
 
     @classmethod
     def get_packed_addr_length(cls):
@@ -175,7 +197,7 @@ class Parser:
                 return package_protocol['define']
             return [package_protocol['define']]
 
-        def get_structure_name_list(package_protocol):
+        def get_structures_name_list(package_protocol):
             structure = package_protocol.get('structure')
             return [part['name'] for part in structure]
 
@@ -193,9 +215,9 @@ class Parser:
                 package_protocol['define'] = recovery_contraction_name(place, contraction, package_define)
 
         def recovery_structure(package_protocol, found_structure_contraction):
-            structure_name_list = get_structure_name_list(package_protocol)
+            structures_name_list = get_structures_name_list(package_protocol)
             for contraction_name in found_structure_contraction:
-                place = structure_name_list.index(contraction_name)
+                place = structures_name_list.index(contraction_name)
                 contraction = protocol['contraction'][contraction_name]
                 package_structure = package_protocol['structure']
                 package_protocol['structure'] = recovery_contraction_name(place, contraction, package_structure)
@@ -208,9 +230,9 @@ class Parser:
             if found_define_contraction:
                 recovery_define(package_protocol, found_define_contraction)
 
-            structure_name_list = get_structure_name_list(package_protocol)
-            found_structure_contraction = set(contractions_name) & set(structure_name_list)
-            if structure_name_list:
+            structures_name_list = get_structures_name_list(package_protocol)
+            found_structure_contraction = set(contractions_name) & set(structures_name_list)
+            if structures_name_list:
                 recovery_structure(package_protocol, found_structure_contraction)
 
         return protocol
@@ -250,6 +272,10 @@ class Parser:
         return kwargs['part_data'] == 1
 
     def __split_markers(self, marker_name, markers_data):
+
+        request = self.connection.get_request().hex() if hasattr(self, 'connection') else None
+        logger.info('marker_name {}, markers_data {}, request {}'.format(marker_name, markers_data.hex(), request))
+
         marker_structure = self.__get_marker_description(marker_name)
         markers_data_length = len(markers_data)
         marker_mask = self.__make_mask(

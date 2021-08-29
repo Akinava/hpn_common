@@ -17,7 +17,7 @@ PROTOCOL = {
             'name': 'hpn_ping',
             'define': [
                 'verify_package_length',
-                'define_hpn_ping'],
+                'verify_hpn_ping'],
             'encrypted': False,
             'signed': False,
             'structure': [
@@ -30,7 +30,7 @@ PROTOCOL = {
             'signed': False,
             'response': 'hpn_neighbour_client',
             'structure': [
-                {'name': ('major_protocol_version_marker', 'minor_protocol_version_marker'), 'length': 1, 'type': 'markers'},
+                {'name': ('major_client_protocol_version_marker', 'minor_client_protocol_version_marker'), 'length': 1, 'type': 'markers'},
                 {'name': ('encrypted_request_marker', 'package_id_marker'), 'length': 1, 'type': 'markers'},
                 {'name': 'receiver_fingerprint', 'length': CryptTools.fingerprint_length},
                 {'name': 'timestamp', 'length': 4, 'type': 'timestamp'},
@@ -70,8 +70,8 @@ PROTOCOL = {
     'markers': [
         {'name': 'encrypted_request_marker', 'start_bit': 0, 'length': 1, 'type': 'bool_marker'},
         {'name': 'package_id_marker', 'start_bit': 1, 'length': 7, 'type': 'int_marker'},
-        {'name': 'major_protocol_version_marker', 'start_bit': 0, 'length': 4, 'type': 'int_marker'},
-        {'name': 'minor_protocol_version_marker', 'start_bit': 4, 'length': 4, 'type': 'int_marker'},
+        {'name': 'major_client_protocol_version_marker', 'start_bit': 0, 'length': 4, 'type': 'int_marker'},
+        {'name': 'minor_client_protocol_version_marker', 'start_bit': 4, 'length': 4, 'type': 'int_marker'},
     ],
     'lists': [
         {
@@ -87,14 +87,14 @@ PROTOCOL = {
             'name': 'ctr_verify_len_ver_id_marker_timestamp_receiver_fingerprint',
             'structure': [
                 'verify_package_length',
-                'verify_protocol_version',
+                'verify_client_protocol_version',
                 'verify_package_id_marker',
                 'verify_timestamp',
                 'verify_receiver_fingerprint']},
         {
             'name': 'ctr_structure_protocol_version_id_marker_receiver_fingerprint_timestamp',
             'structure': [
-                {'name': ('major_protocol_version_marker', 'minor_protocol_version_marker'), 'length': 1, 'type': 'markers'},
+                {'name': ('major_client_protocol_version_marker', 'minor_client_protocol_version_marker'), 'length': 1, 'type': 'markers'},
                 {'name': 'package_id_marker', 'length': 1,  'type': 'int'},
                 {'name': 'receiver_fingerprint', 'length': CryptTools.fingerprint_length},
                 {'name': 'timestamp', 'length': 4, 'type': 'timestamp'}]}

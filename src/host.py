@@ -17,8 +17,8 @@ import utilit
 
 class Host:
     def __init__(self, handler, protocol):
-        logger.debug('')
-        self.handler = handler
+        #logger.debug('')
+        self.handler = lambda: handler(protocol)
         self.protocol = Parser.init_protocol(protocol)
         self.net_pool = NetPool()
         self.__set_posix_handler()
@@ -37,7 +37,7 @@ class Host:
         logger.info('create listener on port {}'.format(local_addr[1]))
         loop = asyncio.get_running_loop()
         transport, protocol = await loop.create_datagram_endpoint(
-            lambda: self.handler(protocol=self.protocol),
+            self.handler,
             local_addr=local_addr)
         return transport
 
@@ -47,7 +47,7 @@ class Host:
             remote_addr=remote_addr)
 
     async def ping(self):
-        logger.info('')
+        #logger.info('')
         while not self.listener.is_closing():
             self.__ping_connections()
             await asyncio.sleep(1)
@@ -55,11 +55,8 @@ class Host:
     def __ping_connections(self):
         for connection in self.net_pool.get_all_connections():
             if connection.last_sent_message_is_over_ping_time():
-                logger.debug('send ping to {}'.format(connection))
-                self.handler(
-                    connection=connection,
-                    protocol=self.protocol
-                ).hpn_ping()
+                #logger.debug('send ping to {}'.format(connection))
+                self.handler().hpn_ping(connection)
 
     def __shutdown_connections(self):
         self.net_pool.shutdown()

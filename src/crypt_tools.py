@@ -12,6 +12,7 @@ from cryptotool import *
 import settings
 from utilit import Singleton
 from settings import logger
+from net_pool import NetPool
 
 
 class Tools(Singleton):
@@ -23,11 +24,11 @@ class Tools(Singleton):
     sign_length = 64
 
     def __init__(self):
-        logger.debug('')
+        #logger.debug('')
         self.__init_ecdsa()
 
     def __init_ecdsa(self):
-        logger.debug('')
+        #logger.debug('')
         if not self.__get_ecdsa_from_file():
             self.__generate_new_ecdsa()
             self.__save_ecdsa()
@@ -44,12 +45,12 @@ class Tools(Singleton):
                 return None
 
     def __save_shadow_file(self, data):
-        logger.debug('')
+        logger.debug(settings.shadow_file)
         with open(settings.shadow_file, 'w') as shadow_file:
             shadow_file.write(json.dumps(data, indent=2))
 
     def __update_shadow_file(self, new_data):
-        logger.debug('')
+        logger.debug(settings.shadow_file)
         file_data = {} or self.__read_shadow_file()
         if file_data is None:
             file_data = {}
@@ -57,7 +58,7 @@ class Tools(Singleton):
         self.__save_shadow_file(file_data)
 
     def __get_ecdsa_from_file(self):
-        logger.debug('')
+        #logger.debug('')
         shadow_data = self.__read_shadow_file()
         if shadow_data is None:
             return False
@@ -112,19 +113,19 @@ class Tools(Singleton):
     def sign(self, message):
         return self.ecdsa.sign(message)
 
-    def encrypt_message(self, **kwargs):
-        package_protocol = kwargs['package_protocol']
-        connection = kwargs['receiving_connection']
-        message = kwargs['message']
-        logger.debug('connection.get_encrypt_marker {}'.format(connection.get_encrypt_marker()))
+    def encrypt_message(self, message, package_protocol, receiving_connection):
+        #logger.debug('connection.get_encrypt_marker {}'.format(connection.get_encrypt_marker()))
         if package_protocol['encrypted'] is False and package_protocol['signed'] is False:
-            logger.debug('message is not encrypted')
+            #logger.debug('message is not encrypted')
             return message
-        if connection.get_encrypt_marker() is True and package_protocol['encrypted'] is True:
-            logger.debug('message is encrypted')
-            return self.encrypt(message, connection.get_pub_key())
+        if receiving_connection.get_encrypt_marker() is True and package_protocol['encrypted'] is True:
+            logger.debug('encrypt_message fingerprint {} message {}'.format(
+                receiving_connection.get_fingerprint().hex(),
+                self.encrypt(message, receiving_connection.get_pub_key()).hex()))
+
+            return self.fingerprint + self.encrypt(message, receiving_connection.get_pub_key())
         if package_protocol['signed'] is True or package_protocol['encrypted'] is True:
-            logger.debug('message is signed')
+            #logger.debug('message is signed')
             return self.sign(message)
 
     def unpack_datagram(self, connection):
@@ -141,13 +142,24 @@ class Tools(Singleton):
             return False
         return True
 
-    def __decrypt_request(self, connection):
+    def __get_connection_pub_key(self, connection):
         pub_key = connection.get_pub_key()
+        if pub_key is not None:
+            return pub_key
+        connection_fingerprint = connection.get_request()[: self.fingerprint_length]
+        connection_with_pub_key = NetPool().find_connection_by_fingerprint(connection_fingerprint)
+        if connection_with_pub_key is not None:
+            NetPool().copy_connection_property(connection, connection_with_pub_key)
+            return connection_with_pub_key.get_pub_key()
+        return None
+
+    def __decrypt_request(self, connection):
+        pub_key = self.__get_connection_pub_key(connection)
         if pub_key is None:
-            connection.save_message(connection.get_request())
             return False
-        shared_key = self.get_shared_key_ecdh(connection.get_pub_key())
-        datagram = self.aes_decode(shared_key, connection.get_request())
+        shared_key = self.get_shared_key_ecdh(pub_key)
+        encrypted_request = connection.get_request()[self.fingerprint_length:]
+        datagram = self.aes_decode(shared_key, encrypted_request)
         logger.info('{}'.format(datagram.hex()))
         connection.set_request(datagram)
         return True
