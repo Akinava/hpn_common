@@ -24,18 +24,16 @@ class Tools(Singleton):
     sign_length = 64
 
     def __init__(self):
-        #logger.debug('')
         self.__init_ecdsa()
 
     def __init_ecdsa(self):
-        #logger.debug('')
         if not self.__get_ecdsa_from_file():
             self.__generate_new_ecdsa()
             self.__save_ecdsa()
         self.fingerprint = self.make_fingerprint(self.ecdsa.get_pub_key())
 
     def __read_shadow_file(self):
-        logger.info(settings.shadow_file)
+        logger.debug(settings.shadow_file)
         if not os.path.isfile(settings.shadow_file):
             return None
         with open(settings.shadow_file) as shadow_file:
@@ -160,6 +158,6 @@ class Tools(Singleton):
         shared_key = self.get_shared_key_ecdh(pub_key)
         encrypted_request = connection.get_request()[self.fingerprint_length:]
         datagram = self.aes_decode(shared_key, encrypted_request)
-        logger.info('{}'.format(datagram.hex()))
+        # logger.debug('{}'.format(datagram.hex()))
         connection.set_request(datagram)
         return True

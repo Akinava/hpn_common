@@ -17,14 +17,15 @@ from utilit import check_border_timestamp
 
 class Connection:
     def __init__(self, remote_addr=None, transport=None, request=None):
-        #logger.info('')
+        #logger.debug('')
         self.transport = transport
-        self.__set_time_received_message()
+        self.received_message_time = None
+        self.sent_message_time = None
         if request:
+            self.__set_time_received_message()
             self.__request = request
         if remote_addr:
             self.__set_remote_addr(remote_addr)
-        self.sent_message_time = None
         NetPool().save_connection(self)
 
 
@@ -36,10 +37,10 @@ class Connection:
         return True
 
     def __str__(self):
-        return '{}:{}, last sent_message_time {}'.format(self.__remote_host, self.__remote_port, self.sent_message_time)
+        return '{}:{}'.format(self.__remote_host, self.__remote_port)
 
     def __repr__(self):
-        return '{}:{}, last sent_message_time {}'.format(self.__remote_host, self.__remote_port, self.sent_message_time)
+        return '{}:{}'.format(self.__remote_host, self.__remote_port)
 
     def is_alive(self):
         if self.transport.is_closing():
@@ -47,12 +48,30 @@ class Connection:
         return True
 
     def last_received_message_is_over_time_out(self):
-        return time() - self.__received_message_time > settings.peer_timeout_seconds
+        if self.message_was_never_sent():
+            return False
+        if self.message_was_never_received():
+            if self.last_sent_message_is_over_time_out():
+                return True
+            return False
+        return time() - self.received_message_time > settings.peer_timeout_seconds
 
     def last_sent_message_is_over_ping_time(self):
-        if self.sent_message_time is None:
-            return True
+        if self.message_was_never_sent():
+            return False
         return time() - self.sent_message_time > settings.peer_ping_time_seconds
+
+    def last_sent_message_is_over_time_out(self):
+        return time() - self.sent_message_time > settings.peer_timeout_seconds
+
+    def get_time_received_message(self):
+        return self.received_message_time
+
+    def message_was_never_sent(self):
+        return self.sent_message_time is None
+
+    def message_was_never_received(self):
+        return self.received_message_time is None
 
     def get_time_sent_message(self):
         return self.sent_message_time
@@ -63,11 +82,8 @@ class Connection:
         else:
             self.sent_message_time = sent_message_time
 
-    def get_time_received_message(self):
-            return self.__received_message_time
-
     def __set_time_received_message(self):
-        self.__received_message_time = time()
+        self.received_message_time = time()
 
     def __set_remote_addr(self, remote_addr):
         self.__remote_host, self.__remote_port = remote_addr
@@ -110,8 +126,8 @@ class Connection:
     def set_unpack_request(self, unpack_request):
         self.unpack_request = unpack_request
 
-    def get_unpack_request(self):
-        return self.unpack_request
+    def get_unpack_request_part(self, part_name):
+        return self.unpack_request[part_name]
 
     def send(self, response):
         self.transport.sendto(response, (self.__remote_host, self.__remote_port))

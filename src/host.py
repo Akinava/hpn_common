@@ -34,7 +34,7 @@ class Host:
             self.__config_reload()
 
     async def create_listener(self, local_addr):
-        logger.info('create listener on port {}'.format(local_addr[1]))
+        logger.debug('create listener on port {}'.format(local_addr[1]))
         loop = asyncio.get_running_loop()
         transport, protocol = await loop.create_datagram_endpoint(
             self.handler,
@@ -47,7 +47,7 @@ class Host:
             remote_addr=remote_addr)
 
     async def ping(self):
-        #logger.info('')
+        #logger.debug('')
         while not self.listener.is_closing():
             self.__ping_connections()
             await asyncio.sleep(1)
@@ -66,7 +66,7 @@ class Host:
         utilit.import_config()
 
     def __exit(self):
-        logger.info('')
+        logger.debug('')
         self.listener.shutdown()
         self.__shutdown_connections()
 

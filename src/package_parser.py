@@ -32,6 +32,15 @@ class Parser:
         if connection is not None:
             self.connection = connection
 
+    def get_name_protocol_definition_functions(self):
+        return self.package_protocol['define']
+
+    def response_function_name(self):
+        return self.package_protocol.get('response')
+
+    def get_package_id_marker(self):
+        return self.package_protocol.get('package_id_marker')
+
     def find_package_structure(self, **kwargs):
         if 'package_structure' in kwargs:
             return kwargs['package_structure']
@@ -45,28 +54,18 @@ class Parser:
             raise Exception('Error: no protocol with the name {}'.format(package_protocol_name))
         return package_protocol
 
-    def debug_unpack_package(self, message, package_protocol, connection):
-        connection.set_request(message)
-        self.set_package_protocol(package_protocol)
-        self.set_connection(connection)
-        unpack_request = {}
-        for part_structure in self.package_protocol['structure']:
-            part_data, data = self.__unpack_stream(message, part_structure['length'])
-            part_package = self.unpack_type(part_data, part_structure)
-            unpack_request.update(part_package)
-
+    def debug_unpack_package(self, message):
+        self.connection.set_request(message)
+        unpack_request = self.unpack_package()
         for k, v in unpack_request.items():
             if isinstance(v, bytes):
                 unpack_request[k] = v.hex()
-
         logger.debug('package {} send to {} package_structure {}'.format(
             self.package_protocol['name'],
-            connection,
+            self.connection,
             unpack_request))
 
-    def unpack_package(self, package_protocol, connection):
-        self.set_package_protocol(package_protocol)
-        self.set_connection(connection)
+    def unpack_package(self):
         data = self.connection.get_request()
         unpack_request = {}
         for part_structure in self.package_protocol['structure']:
@@ -80,6 +79,9 @@ class Parser:
             part_package = self.unpack_type(part_data, part_structure)
             unpack_request.update(part_package)
         return unpack_request
+
+    def get_request_length(self):
+        return len(self.connection.get_request())
 
     def unpack_type(self, part_data, part_structure):
         part_type = part_structure.get('type', NULL())
@@ -111,8 +113,8 @@ class Parser:
         unpack_data = self.unpack_mapping('hpn_servers_protocol', int_data)
         return {kwargs['part_name']: unpack_data}
 
-    def unpack_hpn_ping(self, part_name, part_data):
-        return {'ping': part_data}
+    def unpack_hpn_ping(self, **kwarg):
+        return {'hpn_ping': self.unpack_int(**kwarg)}
 
     def unpack_mapping(self, mapping_name, mapping_data):
         structure = self.__protocol['mapping'][mapping_name]['structure']
@@ -141,14 +143,14 @@ class Parser:
         port = res[4]
         return (host, port)
 
-    def get_part(self, name, package_protocol):
-        self.set_package_protocol(package_protocol)
-        return self.unpack_package().get(name, NULL())
+    def get_part(self, part_name):
+        return self.unpack_package().get(part_name, NULL())
 
-    def calc_structure_length(self, package_structure, connection=None):
-        self.set_connection(connection)
+    def calc_structure_length(self, structure=None):
+        if structure is None:
+            structure = self.package_protocol['structure']
         length = 0
-        for part in package_structure:
+        for part in structure:
             if length > len(self.connection.get_request()):
                 return None
             if part.get('type') == 'list':
@@ -168,7 +170,7 @@ class Parser:
 
     def calc_list_structure_size(self, list_name):
         list_structure = self.__protocol['lists'][list_name]['structure']
-        return self.calc_structure_length(package_structure=list_structure)
+        return self.calc_structure_length(structure=list_structure)
 
     @classmethod
     def get_packed_addr_length(cls):
@@ -272,10 +274,8 @@ class Parser:
         return kwargs['part_data'] == 1
 
     def __split_markers(self, marker_name, markers_data):
-
         request = self.connection.get_request().hex() if hasattr(self, 'connection') else None
-        logger.info('marker_name {}, markers_data {}, request {}'.format(marker_name, markers_data.hex(), request))
-
+        # logger.debug('marker_name {}, markers_data {}, request {}'.format(marker_name, markers_data.hex(), request))
         marker_structure = self.__get_marker_description(marker_name)
         markers_data_length = len(markers_data)
         marker_mask = self.__make_mask(
