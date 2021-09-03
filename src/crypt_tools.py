@@ -30,6 +30,7 @@ class Tools(Singleton):
         if not self.__get_ecdsa_from_file():
             self.__generate_new_ecdsa()
             self.__save_ecdsa()
+        self.__init_ecdh()
         self.fingerprint = self.make_fingerprint(self.ecdsa.get_pub_key())
 
     def __read_shadow_file(self):
@@ -65,12 +66,16 @@ class Tools(Singleton):
             return False
         priv_key = B58().unpack(ecdsa_priv_key_b58)
         self.ecdsa = ECDSA(priv_key=priv_key)
-        self.ecdh = ECDH(priv_key=priv_key)
         return True
 
     def __generate_new_ecdsa(self):
         logger.debug('')
         self.ecdsa = ECDSA()
+
+    def __init_ecdh(self):
+        priv_key = self.ecdsa.get_priv_key()
+        self.ecdh = ECDH(priv_key=priv_key)
+
 
     def __save_ecdsa(self):
         logger.debug('')

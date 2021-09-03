@@ -63,7 +63,7 @@ class Handler(Stream):
     def __define_package_protocol(self, parser):
         for package_protocol in self.protocol['packages'].values():
             parser.set_package_protocol(package_protocol)
-            logger.debug('check package_protocol {}'.format(package_protocol['name']))
+            # logger.debug('check package_protocol {}'.format(package_protocol['name']))
             if self.__define_request(parser):
                 logger.debug('package define as {}'.format(package_protocol['name']))
                 return True
@@ -78,9 +78,9 @@ class Handler(Stream):
                 return False
             define_func = getattr(self, name_protocol_definition_function)
 
-            logger.debug('define_func_name {}, result - {}'.format(
-                    name_protocol_definition_function,
-                    define_func(parser)))
+            # logger.debug('define_func_name {}, result - {}'.format(
+            #         name_protocol_definition_function,
+            #         define_func(parser)))
 
             if define_func(parser) is False:
                 return False
