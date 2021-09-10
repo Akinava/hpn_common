@@ -9,19 +9,28 @@ __version__ = [0, 0]
 import asyncio
 import signal
 from settings import logger
-from connection import Connection
-from net_pool import NetPool
 from package_parser import Parser
 import utilit
+import settings
 
 
 class Host:
-    def __init__(self, handler, protocol):
+    def __init__(self, net_pool, handler, protocol):
         #logger.debug('')
-        self.handler = lambda: handler(protocol)
-        self.protocol = Parser.init_protocol(protocol)
-        self.net_pool = NetPool()
+        self.net_pool = net_pool()
+        self.parser = lambda: Parser(protocol=protocol)
+        self.handler = lambda: handler(parser=self.parser, net_pool=self.net_pool)
         self.__set_posix_handler()
+
+    async def run(self):
+        await self.create_default_listener()
+        ping_task = asyncio.create_task(self.ping())
+        await ping_task
+
+    async def create_default_listener(self):
+        self.default_listener = await self.create_listener(
+            (settings.local_host,
+             settings.default_port))
 
     def __set_posix_handler(self):
         signal.signal(signal.SIGUSR1, self.__handle_posix_signal)
@@ -37,18 +46,16 @@ class Host:
         logger.debug('create listener on port {}'.format(local_addr[1]))
         loop = asyncio.get_running_loop()
         transport, protocol = await loop.create_datagram_endpoint(
-            self.handler,
+            protocol_factory=self.handler,
             local_addr=local_addr)
         return transport
 
-    def create_connection(self, remote_addr):
-        return Connection(
-            transport=self.listener,
-            remote_addr=remote_addr)
+    def create_connection(self, transport, remote_addr):
+        return self.net_pool.create_connection(remote_addr, transport)
 
     async def ping(self):
         #logger.debug('')
-        while not self.listener.is_closing():
+        while not self.default_listener.is_closing():
             self.__ping_connections()
             await asyncio.sleep(1)
 

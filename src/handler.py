@@ -11,18 +11,16 @@ from settings import logger
 import settings
 from crypt_tools import Tools as CryptTools
 from package_parser import Parser
-from connection import Connection, NetPool
 from utilit import check_border_with_over_flow, check_border_timestamp, Stream
 
 
 class Handler(Stream):
-    def __init__(self, protocol, on_con_lost=None):
-        self.net_pool = NetPool()
+    def __init__(self, net_pool, parser, on_con_lost=None):
+        self.net_pool = net_pool
         self.crypt_tools = CryptTools()
         self.__on_con_lost = on_con_lost
         self.transport = None
-        self.protocol = protocol
-        self.parser = lambda: Parser(protocol=protocol)
+        self.parser = parser
 
     def connection_made(self, transport):
         #logger.debug('')
@@ -30,28 +28,28 @@ class Handler(Stream):
 
     def datagram_received(self, request, remote_addr):
         logger.debug('raw datagram |{}| from {}'.format(request.hex(), remote_addr))
+        request = self.net_pool.datagram_received(self.transport, request, remote_addr)
         self.run_stream(
             target=self.__handle,
-            request=request,
-            remote_addr=remote_addr)
+            request=request)
 
     def connection_lost(self, remote_addr):
         logger.debug('')
 
-    def __handle(self, remote_addr, request):
-        connection = Connection(
-            transport=self.transport,
-            remote_addr=remote_addr,
-            request=request)
-
-        if self.crypt_tools.unpack_datagram(connection) is False:
+    def __handle(self, request):
+        if self.crypt_tools.unpack_datagram(request) is False:
             return
-        logger.debug('decrypted datagram {} from {}'.format(connection.get_request().hex(), remote_addr))
+        #logger.debug('decrypted datagram {} from {}'.format(connection.get_request().hex(), remote_addr))
         parser = self.parser()
         parser.set_connection(connection)
 
         if self.__define_package_protocol(parser) is False:
             return
+
+        logger.debug('message received from {}'.format(connection))
+        parser.debug_unpack_package(connection.get_request())
+        print('=' * 10)
+
         response_function = self.__get_response_function(parser)
         if response_function is None:
             return
@@ -66,6 +64,7 @@ class Handler(Stream):
             # logger.debug('check package_protocol {}'.format(package_protocol['name']))
             if self.__define_request(parser):
                 logger.debug('package define as {}'.format(package_protocol['name']))
+
                 return True
         logger.warn('GeneralProtocol can not define request')
         return False
@@ -104,9 +103,9 @@ class Handler(Stream):
             else:
                 make_part_message_function = getattr(self, 'get_{}'.format(part_structure['name']))
 
-            logger.debug('make part {} {}'.format(
-                part_structure['name'],
-                make_part_message_function(**kwargs).hex()))
+            # logger.debug('make part {} {}'.format(
+            #     part_structure['name'],
+            #     make_part_message_function(**kwargs).hex()))
 
             message += make_part_message_function(**kwargs)
         return message
@@ -124,12 +123,14 @@ class Handler(Stream):
         parser = self.parser()
         parser.set_connection(receiving_connection)
         parser.set_package_protocol(package_protocol)
+
+        logger.debug('message send to {}'.format(receiving_connection))
         parser.debug_unpack_package(message)
 
-        logger.debug('decrypted_message {} |{}| to {}'.format(
-            package_protocol_name,
-            message.hex(),
-            receiving_connection))
+        # logger.debug('decrypted_message {} |{}| to {}'.format(
+        #     package_protocol_name,
+        #     message.hex(),
+        #     receiving_connection))
 
 
         encrypted_message = self.crypt_tools.encrypt_message(
@@ -141,6 +142,7 @@ class Handler(Stream):
             package_protocol_name,
             encrypted_message.hex(),
             receiving_connection))
+        print('=' * 10)
 
         receiving_connection.send(encrypted_message)
 

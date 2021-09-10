@@ -12,7 +12,6 @@ from cryptotool import *
 import settings
 from utilit import Singleton
 from settings import logger
-from net_pool import NetPool
 
 
 class Tools(Singleton):
@@ -21,7 +20,7 @@ class Tools(Singleton):
     priv_key_length = 32
     pub_key_length = 64
     fingerprint_length = 32
-    sign_length = 64
+    signature_length = 64
 
     def __init__(self):
         self.__init_ecdsa()
@@ -34,7 +33,7 @@ class Tools(Singleton):
         self.fingerprint = self.make_fingerprint(self.ecdsa.get_pub_key())
 
     def __read_shadow_file(self):
-        logger.debug(settings.shadow_file)
+        # logger.debug(settings.shadow_file)
         if not os.path.isfile(settings.shadow_file):
             return None
         with open(settings.shadow_file) as shadow_file:
@@ -122,42 +121,45 @@ class Tools(Singleton):
             #logger.debug('message is not encrypted')
             return message
         if receiving_connection.get_encrypt_marker() is True and package_protocol['encrypted'] is True:
-            logger.debug('encrypt_message fingerprint {} message {}'.format(
-                receiving_connection.get_fingerprint().hex(),
-                self.encrypt(message, receiving_connection.get_pub_key()).hex()))
+            # logger.debug('encrypt_message fingerprint {} message {}'.format(
+            #     self.fingerprint.hex(),
+            #     self.encrypt(message, receiving_connection.get_pub_key()).hex()))
 
             return self.fingerprint + self.encrypt(message, receiving_connection.get_pub_key())
         if package_protocol['signed'] is True or package_protocol['encrypted'] is True:
             #logger.debug('message is signed')
             return self.sign(message)
 
-    def unpack_datagram(self, connection):
-        if not self.__is_encrypted(connection):
-            logger.debug('request is not encrypted')
+    def unpack_datagram(self, request):
+        if not self.__is_encrypted(request):
+            #logger.debug('request is not encrypted')
             return True
-        logger.debug('request is decrypt')
-        return self.__decrypt_request(connection)
+        #encrypt_messagelogger.debug('request is decrypt')
+        return self.__decrypt_request(request)
 
-    def __is_encrypted(self, connection):
-        if len(connection.get_request()) <= AES.bs:
+    def __is_encrypted(self, request):
+        if len(request.get_unpack_request()) <= AES.bs:
             return False
-        if self.fingerprint in connection.get_request():
+        if self.fingerprint in request.get_unpack_request():
             return False
         return True
 
-    def __get_connection_pub_key(self, connection):
+    def __get_connection_pub_key(self, request):
+        connection = request.get_connection()
         pub_key = connection.get_pub_key()
         if pub_key is not None:
             return pub_key
-        connection_fingerprint = connection.get_request()[: self.fingerprint_length]
-        connection_with_pub_key = NetPool().find_connection_by_fingerprint(connection_fingerprint)
-        if connection_with_pub_key is not None:
-            NetPool().copy_connection_property(connection, connection_with_pub_key)
-            return connection_with_pub_key.get_pub_key()
+        # in case if request came from another port that we gat from server
+        # the connection will not have a pub_key then we need to find the original
+        # connection from server which has a pub_key
+        fingerprint = request.get_unpack_request()[: self.fingerprint_length]
+        net_pool = connection.get_neet_pool()
+        if net_pool.set_to_connection_pub_key(connection, fingerprint) is True:
+            return connection.get_pub_key()
         return None
 
-    def __decrypt_request(self, connection):
-        pub_key = self.__get_connection_pub_key(connection)
+    def __decrypt_request(self, request):
+        pub_key = self.__get_connection_pub_key(request)
         if pub_key is None:
             return False
         shared_key = self.get_shared_key_ecdh(pub_key)

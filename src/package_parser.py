@@ -23,6 +23,7 @@ class Parser:
 
     def __init__(self, protocol):
         self.__protocol = protocol
+        self.init_protocol()
 
     def set_package_protocol(self, package_protocol):
         if package_protocol is not None:
@@ -60,9 +61,8 @@ class Parser:
         for k, v in unpack_request.items():
             if isinstance(v, bytes):
                 unpack_request[k] = v.hex()
-        logger.debug('package {} send to {} package_structure {}'.format(
+        logger.debug('package {} unpack_package {}'.format(
             self.package_protocol['name'],
-            self.connection,
             unpack_request))
 
     def unpack_package(self):
@@ -176,24 +176,19 @@ class Parser:
     def get_packed_addr_length(cls):
         return struct.calcsize(cls.struct_addr)
 
-    @classmethod
-    def init_protocol(cls, protocol):
-        protocol = cls.convert_protocol_to_dict(protocol)
-        protocol = cls.recovery_protocol_contraction(protocol)
-        return protocol
+    def init_protocol(self):
+        self.convert_protocol_to_dict()
+        self.recovery_protocol_contraction()
 
-    @classmethod
-    def convert_protocol_to_dict(cls, protocol):
+    def convert_protocol_to_dict(self):
         for key in ['packages', 'markers', 'lists', 'contraction', 'mapping']:
-            items_list = protocol[key]
+            items_list = self.__protocol[key]
             items_dict = {}
             for item in items_list:
                 items_dict[item['name']] = item
-            protocol[key] = items_dict
-        return protocol
+            self.__protocol[key] = items_dict
 
-    @classmethod
-    def recovery_protocol_contraction(cls, protocol):
+    def recovery_protocol_contraction(self):
         def get_define_name_list(package_protocol):
             if isinstance(package_protocol['define'], list):
                 return package_protocol['define']
@@ -212,7 +207,7 @@ class Parser:
         def recovery_define(package_protocol, found_define_contraction):
             for contraction_name in found_define_contraction:
                 place = package_protocol['define'].index(contraction_name)
-                contraction = protocol['contraction'][contraction_name]
+                contraction = self.__protocol['contraction'][contraction_name]
                 package_define = package_protocol['define']
                 package_protocol['define'] = recovery_contraction_name(place, contraction, package_define)
 
@@ -220,13 +215,13 @@ class Parser:
             structures_name_list = get_structures_name_list(package_protocol)
             for contraction_name in found_structure_contraction:
                 place = structures_name_list.index(contraction_name)
-                contraction = protocol['contraction'][contraction_name]
+                contraction = self.__protocol['contraction'][contraction_name]
                 package_structure = package_protocol['structure']
                 package_protocol['structure'] = recovery_contraction_name(place, contraction, package_structure)
 
-        contractions_name = protocol['contraction'].keys()
+        contractions_name = self.__protocol['contraction'].keys()
 
-        for package_protocol in protocol['packages'].values():
+        for package_protocol in self.__protocol['packages'].values():
             define_name_list = get_define_name_list(package_protocol)
             found_define_contraction = set(contractions_name) & set(define_name_list)
             if found_define_contraction:
@@ -236,8 +231,6 @@ class Parser:
             found_structure_contraction = set(contractions_name) & set(structures_name_list)
             if structures_name_list:
                 recovery_structure(package_protocol, found_structure_contraction)
-
-        return protocol
 
     def pack_timestamp(self):
         return self.pack_int(int(time.time()), 4)

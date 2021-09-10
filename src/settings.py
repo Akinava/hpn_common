@@ -12,7 +12,7 @@ import utilit
 
 config_file = 'config.json'
 logging_level = logging.DEBUG
-logging_format = '%(asctime)s : %(levelname)s: %(threadName)s : %(module)s  : %(funcName)s : %(message)s'
+logging_format = '%(asctime)s : %(levelname)s: %(threadName)s : %(module)s : %(funcName)s : %(message)s'
 
 # host settings
 host_min_user_port = 0x400  #  1024
