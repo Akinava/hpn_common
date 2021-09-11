@@ -94,7 +94,8 @@ class Handler(Stream):
         return getattr(self, response_function_name)
 
     def make_message(self, **kwargs):
-        package_structure = self.parser().find_package_structure(**kwargs)
+        received_request = kwargs['received_request']
+        package_structure = self.parser().find_package_structure(package_protocol_name=received_request.get_package_protocol().response)
         message = b''
         for part_structure in package_structure:
             if part_structure.get('type') == 'markers':
@@ -118,12 +119,11 @@ class Handler(Stream):
         )
 
     def thread_send(self, message, package_protocol_name, receiving_connection):
-        package_protocol = self.protocol['packages'][package_protocol_name]
+        package_protocol = self.parser().protocol.packages[package_protocol_name]
 
         parser = self.parser()
-        parser.set_connection(receiving_connection)
+        parser.set_message(message)
         parser.set_package_protocol(package_protocol)
-
         logger.debug('message send to {}'.format(receiving_connection))
         parser.debug_unpack_package(message)
 
@@ -201,7 +201,7 @@ class Handler(Stream):
         for marker_name in kwargs['markers_structure']['name']:
             get_marker_value_function = getattr(self, '_get_marker_{}'.format(marker_name))
             marker = get_marker_value_function(**kwargs)
-            marker_description = self.protocol['markers'][marker_name]
+            marker_description = self.parser().protocol.markers[marker_name]
             markers ^= self.make_marker(marker, marker_description, kwargs['markers_structure'])
         packed_markers = self.parser().pack_int(markers, kwargs['markers_structure']['length'])
         del kwargs['markers_structure']
@@ -213,8 +213,8 @@ class Handler(Stream):
         return marker << left_shift
 
     def _get_marker_major_hpn_protocol_version_marker(self, **kwargs):
-        return self.protocol['hpn_protocol_version'][0]
+        return self.parser().protocol.hpn_protocol_version[0]
 
     def _get_marker_minor_hpn_protocol_version_marker(self, **kwargs):
-        return self.protocol['hpn_protocol_version'][1]
+        return self.parser().protocol.hpn_protocol_version[1]
 

@@ -30,14 +30,50 @@ class Singleton(object):
         return
 
 
+class NULL(Singleton):
+    def __getattr__(self, attr):
+        return self
+
+    def __getitem__(self, item):
+        return self
+
+
+class JObj:
+    def __init__(self, data):
+        self.__data = data
+
+    def __getattr__(self, attr):
+        if isinstance(self.__data, dict):
+            return self.__get_from_dict(attr)
+        return NULL()
+
+    def __getitem__(self, item):
+        if isinstance(self.__data, (list, tuple)):
+            return self.__get_from_list(item)
+        if isinstance(self.__data, dict):
+            return self.__get_from_dict(item)
+        return NULL()
+
+    def __get_from_list(self, index):
+        if len(self.__data) > index:
+            return self.__wrap_up(self.__data[index])
+        return NULL()
+
+    def __get_from_dict(self, key):
+        if key in self.__data:
+            return self.__wrap_up(self.__data[key])
+        return NULL()
+
+    def __wrap_up(self, obj):
+        if isinstance(obj, (dict, list, tuple)):
+            return JObj(obj)
+        return obj
+
+
 class Stream:
     def run_stream(self, target, **kwargs):
         t = threading.Thread(target=target, kwargs=kwargs, daemon=True)
         t.start()
-
-
-class NULL(Singleton):
-    pass
 
 
 def setup_logger():

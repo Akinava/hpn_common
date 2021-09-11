@@ -37,10 +37,8 @@ class Connection:
     def __repr__(self):
         return '{}:{}'.format(self.__remote_host, self.__remote_port)
 
-    def is_alive(self):
-        if self.transport.is_closing():
-            return False
-        return True
+    # def is_alive(self):
+    #     return self.transport.is_closing() is False
 
     def last_received_message_is_over_time_out(self):
         if self.message_was_never_sent():
@@ -113,12 +111,6 @@ class Connection:
         if not hasattr(self, '_encrypt_marker'):
             return settings.request_encrypted_protocol
         return self._encrypt_marker
-
-    def set_unpack_request(self, unpack_request):
-        self.unpack_request = unpack_request
-
-    def get_unpack_request_part(self, part_name):
-        return self.unpack_request[part_name]
 
     def send(self, response):
         self.transport.sendto(response, (self.__remote_host, self.__remote_port))

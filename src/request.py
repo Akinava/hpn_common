@@ -6,25 +6,23 @@ __license__ = 'MIT License'
 __version__ = [0, 0]
 
 
+from utilit import JObj
+
 class Request:
-    def __init__(self, raw_request, connection):
-        self.connection = connection
-        self.raw_request = raw_request
+    def __init__(self, connection, raw_request=None):
         self.decrypted_request = None
         self.unpack_request = None
-        self.connection.set_time_received_message()
-
-    def get_decrypted_request(self):
-        return self.decrypted_request
+        self.package_protocol = None
+        self.connection = connection
+        self.raw_request = raw_request
+        if self.raw_request:
+            self.connection.set_time_received_message()
 
     def set_decrypted_request(self, decrypted_request):
         self.decrypted_request = decrypted_request
 
-    def get_unpack_request(self):
-        return self.unpack_request
-
     def set_unpack_request(self, unpack_request):
-        self.unpack_request = unpack_request
+        self.unpack_request = JObj(unpack_request)
 
-    def get_connection(self):
-        return self.connection
+    def set_package_protocol(self, package_protocol):
+        self.package_protocol = JObj(package_protocol)

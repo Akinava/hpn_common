@@ -18,7 +18,8 @@ class Host:
     def __init__(self, net_pool, handler, protocol):
         #logger.debug('')
         self.net_pool = net_pool()
-        self.parser = lambda: Parser(protocol=protocol)
+        init_protocol = Parser.init_protocol(protocol)
+        self.parser = lambda: Parser(protocol=init_protocol)
         self.handler = lambda: handler(parser=self.parser, net_pool=self.net_pool)
         self.__set_posix_handler()
 
