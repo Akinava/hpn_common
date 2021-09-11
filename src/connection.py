@@ -10,7 +10,7 @@ from time import time
 import settings
 from settings import logger
 from crypt_tools import Tools as CryptTools
-from utilit import NULL
+from utilit import null
 from utilit import check_border_timestamp
 
 
@@ -69,8 +69,8 @@ class Connection:
     def get_time_sent_message(self):
         return self.sent_message_time
 
-    def set_time_sent_message(self, sent_message_time=NULL()):
-        if sent_message_time is NULL():
+    def set_time_sent_message(self, sent_message_time=null):
+        if sent_message_time is null:
             self.sent_message_time = time()
         else:
             self.sent_message_time = sent_message_time

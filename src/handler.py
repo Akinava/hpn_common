@@ -11,7 +11,7 @@ from settings import logger
 import settings
 from crypt_tools import Tools as CryptTools
 from package_parser import Parser
-from utilit import check_border_with_over_flow, check_border_timestamp, Stream
+from utilit import check_border_with_over_flow, check_border_timestamp, Stream, null
 
 
 class Handler(Stream):
@@ -41,16 +41,18 @@ class Handler(Stream):
             return
         #logger.debug('decrypted datagram {} from {}'.format(connection.get_request().hex(), remote_addr))
         parser = self.parser()
-        parser.set_connection(connection)
+        parser.set_message(request.decrypted_request)
 
         if self.__define_package_protocol(parser) is False:
             return
 
-        logger.debug('message received from {}'.format(connection))
-        parser.debug_unpack_package(connection.get_request())
-        print('=' * 10)
+        logger.debug('message received from {}'.format(request.connection))
+        logger.debug('package {} unpack_package {}'.format(
+            request.package_protocol.name,
+            request.unpack_request))
+        logger.debug('=' * 10)
 
-        response_function = self.__get_response_function(parser)
+        response_function = self.__get_response_function(request)
         if response_function is None:
             return
 
@@ -59,7 +61,7 @@ class Handler(Stream):
         response_function(connection)
 
     def __define_package_protocol(self, parser):
-        for package_protocol in self.protocol['packages'].values():
+        for package_protocol in parser.protocol.packages.values():
             parser.set_package_protocol(package_protocol)
             # logger.debug('check package_protocol {}'.format(package_protocol['name']))
             if self.__define_request(parser):
@@ -85,9 +87,9 @@ class Handler(Stream):
                 return False
         return True
 
-    def __get_response_function(self, parser):
-        response_function_name = parser.response_function_name()
-        if response_function_name is None:
+    def __get_response_function(self, request):
+        response_function_name = request.package_protocol.response
+        if response_function_name is null:
             logger.debug('GeneralProtocol no response_function_name')
             return
         logger.debug('GeneralProtocol response_function_name {}'.format(response_function_name))
@@ -95,10 +97,13 @@ class Handler(Stream):
 
     def make_message(self, **kwargs):
         received_request = kwargs['received_request']
-        package_structure = self.parser().find_package_structure(package_protocol_name=received_request.get_package_protocol().response)
+        response_package_protocol_name = received_request.package_protocol.response
+        response_package_protocol = self.parser().find_package_protocol(
+            package_protocol_name=response_package_protocol_name)
+        kwargs['response_package_protocol'] = response_package_protocol
         message = b''
-        for part_structure in package_structure:
-            if part_structure.get('type') == 'markers':
+        for part_structure in response_package_protocol.structure:
+            if part_structure.type == 'markers':
                 make_part_message_function = self.get_markers
                 kwargs['markers_structure'] = part_structure
             else:
@@ -122,7 +127,6 @@ class Handler(Stream):
         package_protocol = self.parser().protocol.packages[package_protocol_name]
 
         parser = self.parser()
-        parser.set_message(message)
         parser.set_package_protocol(package_protocol)
         logger.debug('message send to {}'.format(receiving_connection))
         parser.debug_unpack_package(message)
@@ -142,7 +146,7 @@ class Handler(Stream):
             package_protocol_name,
             encrypted_message.hex(),
             receiving_connection))
-        print('=' * 10)
+        logger.debug('=' * 10)
 
         receiving_connection.send(encrypted_message)
 
@@ -187,7 +191,7 @@ class Handler(Stream):
         return my_fingerprint_from_request == my_fingerprint_reference
 
     def get_receiver_fingerprint(self, **kwargs):
-        return kwargs['receiving_connection'].get_fingerprint()
+        return kwargs['received_request'].connection.get_fingerprint()
 
     def get_timestamp(self, **kwargs):
         return self.parser().pack_timestamp()
@@ -198,12 +202,13 @@ class Handler(Stream):
 
     def get_markers(self, **kwargs):
         markers = 0
-        for marker_name in kwargs['markers_structure']['name']:
+        markers_structure = kwargs['markers_structure']
+        for marker_name in markers_structure.name:
             get_marker_value_function = getattr(self, '_get_marker_{}'.format(marker_name))
             marker = get_marker_value_function(**kwargs)
             marker_description = self.parser().protocol.markers[marker_name]
-            markers ^= self.make_marker(marker, marker_description, kwargs['markers_structure'])
-        packed_markers = self.parser().pack_int(markers, kwargs['markers_structure']['length'])
+            markers ^= self.make_marker(marker, marker_description, markers_structure)
+        packed_markers = self.parser().pack_int(markers, markers_structure.length)
         del kwargs['markers_structure']
         return packed_markers
 

@@ -132,15 +132,16 @@ class Tools(Singleton):
 
     def unpack_datagram(self, request):
         if not self.__is_encrypted(request):
+            request.set_decrypted_request(request.raw_request)
             #logger.debug('request is not encrypted')
             return True
         #encrypt_messagelogger.debug('request is decrypt')
         return self.__decrypt_request(request)
 
     def __is_encrypted(self, request):
-        if len(request.get_unpack_request()) <= AES.bs:
+        if len(request.raw_request) <= AES.bs:
             return False
-        if self.fingerprint in request.get_unpack_request():
+        if self.fingerprint in request.raw_request:
             return False
         return True
 
@@ -152,7 +153,7 @@ class Tools(Singleton):
         # in case if request came from another port that we gat from server
         # the connection will not have a pub_key then we need to find the original
         # connection from server which has a pub_key
-        fingerprint = request.get_unpack_request()[: self.fingerprint_length]
+        fingerprint = request.raw_request[: self.fingerprint_length]
         net_pool = connection.get_neet_pool()
         if net_pool.set_to_connection_pub_key(connection, fingerprint) is True:
             return connection.get_pub_key()
@@ -163,8 +164,8 @@ class Tools(Singleton):
         if pub_key is None:
             return False
         shared_key = self.get_shared_key_ecdh(pub_key)
-        encrypted_request = connection.get_request()[self.fingerprint_length:]
-        datagram = self.aes_decode(shared_key, encrypted_request)
+        encrypted_request = request.raw_request[self.fingerprint_length:]
+        decrypted_request = self.aes_decode(shared_key, encrypted_request)
         # logger.debug('{}'.format(datagram.hex()))
-        connection.set_request(datagram)
+        request.set_decrypted_request(decrypted_request)
         return True

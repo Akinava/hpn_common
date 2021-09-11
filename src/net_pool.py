@@ -18,7 +18,9 @@ class NetPool(Singleton):
 
     def datagram_received(self, transport, request, remote_addr):
         connection = self.create_connection(remote_addr, transport)
-        request = Request(request, connection)
+        request = Request(
+            connection=connection,
+            raw_request=request)
         return request
 
     def create_connection(self, remote_addr, transport):

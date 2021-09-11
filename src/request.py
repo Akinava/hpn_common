@@ -10,13 +10,13 @@ from utilit import JObj
 
 class Request:
     def __init__(self, connection, raw_request=None):
-        self.decrypted_request = None
-        self.unpack_request = None
-        self.package_protocol = None
         self.connection = connection
+        self.package_protocol = None
         self.raw_request = raw_request
         if self.raw_request:
             self.connection.set_time_received_message()
+        self.decrypted_request = None
+        self.unpack_request = None
 
     def set_decrypted_request(self, decrypted_request):
         self.decrypted_request = decrypted_request

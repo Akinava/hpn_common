@@ -8,7 +8,7 @@ __version__ = [0, 0]
 
 import struct
 import time
-from utilit import NULL, JObj
+from utilit import null, JObj
 from settings import logger
 
 
@@ -22,16 +22,13 @@ class Parser:
     struct_addr = '>BBBBH'
 
     def __init__(self, protocol):
-        self.__protocol = protocol
-        self.protocol = JObj(self.__protocol)
+        self.protocol = JObj(protocol)
 
     def set_package_protocol(self, package_protocol):
-        if package_protocol is not None:
-            self.package_protocol = package_protocol
+        self.package_protocol = package_protocol
 
     def set_message(self, message):
-        if message is not None:
-            self.message = message
+        self.message = message
 
     def get_name_protocol_definition_functions(self):
         return self.package_protocol['define']
@@ -42,21 +39,14 @@ class Parser:
     def get_package_id_marker(self):
         return self.package_protocol.get('package_id_marker')
 
-    def find_package_structure(self, **kwargs):
-        if 'package_structure' in kwargs:
-            return kwargs['package_structure']
-        if 'package_protocol_name' in kwargs:
-            return self.find_package_protocol(kwargs['package_protocol_name'])['structure']
-        raise Exception('Error: no required variables in kwargs {}'.format(kwargs))
-
     def find_package_protocol(self, package_protocol_name):
-        package_protocol = self.__protocol['packages'].get(package_protocol_name)
-        if package_protocol is None:
+        package_protocol = self.protocol.packages[package_protocol_name]
+        if package_protocol is null:
             raise Exception('Error: no protocol with the name {}'.format(package_protocol_name))
         return package_protocol
 
     def debug_unpack_package(self, message):
-        self.request.set_request(message)
+        self.message = message
         unpack_request = self.unpack_package()
         for k, v in unpack_request.items():
             if isinstance(v, bytes):
@@ -66,27 +56,27 @@ class Parser:
             unpack_request))
 
     def unpack_package(self):
-        data = self.request.get_request()
+        data = self.message
         unpack_request = {}
         for part_structure in self.package_protocol['structure']:
-            if part_structure.get('type', NULL()) == 'list':
+            if part_structure.type == 'list':
                 list_length, data = self.unpack_self_defined_int(data)
                 list_structure_size = self.calc_list_structure_size(part_structure['name'])
                 length = list_length * list_structure_size
             else:
-                length = part_structure['length']
+                length = part_structure.length
             part_data, data = self.__unpack_stream(data, length)
             part_package = self.unpack_type(part_data, part_structure)
             unpack_request.update(part_package)
         return unpack_request
 
     def get_request_length(self):
-        return len(self.connection.get_request())
+        return len(self.message)
 
     def unpack_type(self, part_data, part_structure):
-        part_type = part_structure.get('type', NULL())
-        part_name = part_structure['name']
-        if part_type is NULL():
+        part_type = part_structure.type
+        part_name = part_structure.name
+        if part_type is null:
             return {part_name: part_data}
         unpack_type_function = getattr(self, 'unpack_{}'.format(part_type))
         unpack_data = unpack_type_function(part_name=part_name, part_data=part_data)
@@ -144,7 +134,7 @@ class Parser:
         return (host, port)
 
     def get_part(self, part_name):
-        return self.unpack_package().get(part_name, NULL())
+        return self.unpack_package().get(part_name, null)
 
     def calc_structure_length(self, structure=None):
         if structure is None:
@@ -240,9 +230,10 @@ class Parser:
         return self.pack_int(int(time.time()), 4)
 
     def unpack_markers(self, **kwargs):
-        if not isinstance(kwargs['part_name'], tuple):
-            return self.unpack_single_marker(kwargs['part_name'], kwargs['part_data'])
-        return self.unpack_multiple_marker(kwargs['part_name'], kwargs['part_data'])
+        if not isinstance(kwargs['part_name'], str):
+            return self.unpack_multiple_marker(kwargs['part_name'], kwargs['part_data'])
+        return self.unpack_single_marker(kwargs['part_name'], kwargs['part_data'])
+
 
     def unpack_multiple_marker(self, part_name_list, markers_data):
         unpack_package = {}
@@ -258,8 +249,8 @@ class Parser:
 
     def set_marker_type(self, marker_name, marker_data):
         marker_structure = self.__get_marker_description(marker_name)
-        marker_type = marker_structure.get('type', NULL())
-        if marker_type is NULL():
+        marker_type = marker_structure.type
+        if marker_type is null:
             return marker_data
         set_type_function = getattr(self, 'unpack_{}'.format(marker_type))
         return set_type_function(part_data=marker_data)
@@ -294,7 +285,7 @@ class Parser:
         return length_data_byte * 8 - start_bit - length_bit
 
     def __get_marker_description(self, marker_name):
-        for marker_description in self.__protocol.get('markers', {}).values():
+        for marker_description in self.protocol.markers.values():
             if marker_description['name'] == marker_name:
                 return marker_description
         raise Exception('Error: no description for marker {}'.format(marker_name))
