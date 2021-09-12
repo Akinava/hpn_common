@@ -30,15 +30,6 @@ class Parser:
     def set_message(self, message):
         self.message = message
 
-    def get_name_protocol_definition_functions(self):
-        return self.package_protocol['define']
-
-    def response_function_name(self):
-        return self.package_protocol.get('response')
-
-    def get_package_id_marker(self):
-        return self.package_protocol.get('package_id_marker')
-
     def find_package_protocol(self, package_protocol_name):
         package_protocol = self.protocol.packages[package_protocol_name]
         if package_protocol is null:
@@ -47,14 +38,18 @@ class Parser:
 
     def debug_unpack_package(self, message):
         self.message = message
-        unpack_request = self.unpack_package()
+        unpack_request = self.unpack_package
+        debug_unpack_request = {}
         for k, v in unpack_request.items():
             if isinstance(v, bytes):
-                unpack_request[k] = v.hex()
+                debug_unpack_request[k] = v.hex()
+            else:
+                debug_unpack_request[k] = v
         logger.debug('package {} unpack_package {}'.format(
-            self.package_protocol['name'],
-            unpack_request))
+            self.package_protocol.name,
+            debug_unpack_request))
 
+    @property
     def unpack_package(self):
         data = self.message
         unpack_request = {}
@@ -68,7 +63,7 @@ class Parser:
             part_data, data = self.__unpack_stream(data, length)
             part_package = self.unpack_type(part_data, part_structure)
             unpack_request.update(part_package)
-        return unpack_request
+        return JObj(unpack_request)
 
     def get_request_length(self):
         return len(self.message)
@@ -133,33 +128,30 @@ class Parser:
         port = res[4]
         return (host, port)
 
-    def get_part(self, part_name):
-        return self.unpack_package().get(part_name, null)
-
     def calc_structure_length(self, structure=None):
         if structure is None:
-            structure = self.package_protocol['structure']
+            structure = self.package_protocol.structure
         length = 0
         for part in structure:
-            if length > len(self.connection.get_request()):
+            if length > len(self.message):
                 return None
-            if part.get('type') == 'list':
+            if part.type == 'list':
                 length += self.calc_list_length(
-                    list_name=part['name'],
+                    list_name=part.name,
                     skip_bytes=length)
                 continue
-            length += part['length']
+            length += part.length
         return length
 
     def calc_list_length(self, list_name, skip_bytes):
-        data = self.connection.get_request()[skip_bytes:]
+        data = self.message[skip_bytes:]
         size, rest = self.unpack_self_defined_int(data)
         size_bytes = len(data) - len(rest)
         list_structure_length = self.calc_list_structure_size(list_name)
         return size * list_structure_length + size_bytes
 
     def calc_list_structure_size(self, list_name):
-        list_structure = self.__protocol['lists'][list_name]['structure']
+        list_structure = self.protocol.lists[list_name].structure
         return self.calc_structure_length(structure=list_structure)
 
     @classmethod

@@ -9,25 +9,25 @@ __version__ = [0, 0]
 from settings import logger
 from utilit import Singleton
 from connection import Connection
-from request import Request
+from datagram import Datagram
 
 
 class NetPool(Singleton):
     def __init__(self):
         self.connections_list = []
 
-    def datagram_received(self, transport, request, remote_addr):
+    def datagram_received(self, transport, datagram, remote_addr):
         connection = self.create_connection(remote_addr, transport)
-        request = Request(
+        request = Datagram(
             connection=connection,
-            raw_request=request)
+            raw_message=datagram)
         return request
 
     def create_connection(self, remote_addr, transport):
         connection = Connection(remote_addr=remote_addr, transport=transport)
-        connection.set_net_pool(self)
         if connection in self.connections_list:
             return self.connections_list[self.connections_list.index(connection)]
+        connection.set_net_pool(self)
         self.connections_list.append(connection)
         return connection
 
@@ -51,7 +51,11 @@ class NetPool(Singleton):
                 return True
         return False
 
+    def disconnect(self, connection):
+        self.connections_list.remove(connection)
+        connection.shutdown()
+
     def shutdown(self):
-        for connection in self.__group:
+        for connection in self.connections_list:
             connection.shutdown()
-        self.__group = []
+        self.connections_list = []

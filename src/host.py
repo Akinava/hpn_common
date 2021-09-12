@@ -55,7 +55,7 @@ class Host:
         return self.net_pool.create_connection(remote_addr, transport)
 
     async def ping(self):
-        #logger.debug('')
+        logger.debug('')
         while not self.default_listener.is_closing():
             self.__ping_connections()
             await asyncio.sleep(1)
@@ -63,7 +63,6 @@ class Host:
     def __ping_connections(self):
         for connection in self.net_pool.get_all_connections():
             if connection.last_sent_message_is_over_ping_time():
-                #logger.debug('send ping to {}'.format(connection))
                 self.handler().hpn_ping(connection)
 
     def __shutdown_connections(self):

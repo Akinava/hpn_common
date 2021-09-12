@@ -9,8 +9,8 @@ __version__ = [0, 0]
 import time
 from settings import logger
 import settings
+from datagram import Datagram
 from crypt_tools import Tools as CryptTools
-from package_parser import Parser
 from utilit import check_border_with_over_flow, check_border_timestamp, Stream, null
 
 
@@ -26,9 +26,9 @@ class Handler(Stream):
         #logger.debug('')
         self.transport = transport
 
-    def datagram_received(self, request, remote_addr):
-        logger.debug('raw datagram |{}| from {}'.format(request.hex(), remote_addr))
-        request = self.net_pool.datagram_received(self.transport, request, remote_addr)
+    def datagram_received(self, datagram, remote_addr):
+        logger.debug('raw datagram |{}| from {}'.format(datagram.hex(), remote_addr))
+        request = self.net_pool.datagram_received(self.transport, datagram, remote_addr)
         self.run_stream(
             target=self.__handle,
             request=request)
@@ -41,24 +41,21 @@ class Handler(Stream):
             return
         #logger.debug('decrypted datagram {} from {}'.format(connection.get_request().hex(), remote_addr))
         parser = self.parser()
-        parser.set_message(request.decrypted_request)
+        parser.set_message(request.decrypted_message)
 
         if self.__define_package_protocol(parser) is False:
             return
+        request.set_unpack_message(parser.unpack_package)
+        request.set_package_protocol(parser.package_protocol)
 
         logger.debug('message received from {}'.format(request.connection))
-        logger.debug('package {} unpack_package {}'.format(
-            request.package_protocol.name,
-            request.unpack_request))
+        parser.debug_unpack_package(request.decrypted_message)
         logger.debug('=' * 10)
 
         response_function = self.__get_response_function(request)
         if response_function is None:
             return
-
-        unpack_request = parser.unpack_package()
-        connection.set_unpack_request(unpack_request)
-        response_function(connection)
+        response_function(request)
 
     def __define_package_protocol(self, parser):
         for package_protocol in parser.protocol.packages.values():
@@ -72,7 +69,7 @@ class Handler(Stream):
         return False
 
     def __define_request(self, parser):
-        name_protocol_definition_functions = parser.get_name_protocol_definition_functions()
+        name_protocol_definition_functions = parser.package_protocol.define
         for name_protocol_definition_function in name_protocol_definition_functions:
             if not hasattr(self, name_protocol_definition_function):
                 logger.debug('define_func {} is not implemented'.format(name_protocol_definition_function))
@@ -96,11 +93,10 @@ class Handler(Stream):
         return getattr(self, response_function_name)
 
     def make_message(self, **kwargs):
-        received_request = kwargs['received_request']
-        response_package_protocol_name = received_request.package_protocol.response
+        response_package_protocol_name = kwargs['request'].package_protocol.response
         response_package_protocol = self.parser().find_package_protocol(
             package_protocol_name=response_package_protocol_name)
-        kwargs['response_package_protocol'] = response_package_protocol
+        kwargs['response'].set_package_protocol(response_package_protocol)
         message = b''
         for part_structure in response_package_protocol.structure:
             if part_structure.type == 'markers':
@@ -116,50 +112,35 @@ class Handler(Stream):
             message += make_part_message_function(**kwargs)
         return message
 
-    def send(self, **kwargs):
-        # reason some of the message can be too long and time consuming
-        self.run_stream(
-            target=self.thread_send,
-            **kwargs
-        )
+    def send(self, response):
+        self.run_stream(target=self.thread_send, response=response)
 
-    def thread_send(self, message, package_protocol_name, receiving_connection):
-        package_protocol = self.parser().protocol.packages[package_protocol_name]
-
+    def thread_send(self, response):
+        logger.debug('message send to {} package {}'.format(response.connection, response.package_protocol.name))
         parser = self.parser()
-        parser.set_package_protocol(package_protocol)
-        logger.debug('message send to {}'.format(receiving_connection))
-        parser.debug_unpack_package(message)
+        parser.set_package_protocol(response.package_protocol)
+        parser.debug_unpack_package(response.decrypted_message)
 
-        # logger.debug('decrypted_message {} |{}| to {}'.format(
-        #     package_protocol_name,
-        #     message.hex(),
-        #     receiving_connection))
-
-
-        encrypted_message = self.crypt_tools.encrypt_message(
-            message=message,
-            package_protocol=package_protocol,
-            receiving_connection=receiving_connection)
+        self.crypt_tools.encrypt_message(response=response)
 
         logger.debug('encrypted_message {} |{}| to {}'.format(
-            package_protocol_name,
-            encrypted_message.hex(),
-            receiving_connection))
+            response.package_protocol.name,
+            response.raw_message.hex(),
+            response.connection))
         logger.debug('=' * 10)
 
-        receiving_connection.send(encrypted_message)
+        response.connection.send(response.raw_message)
 
     def hpn_ping(self, receiving_connection):
-        message = self.parser().pack_int(int(time.time()) & 0xff, 1)
-        self.send(
-            package_protocol_name='hpn_ping',
-            receiving_connection=receiving_connection,
-            message=message
-        )
+        parser = self.parser()
+        message = parser.pack_int(int(time.time()) & 0xff, 1)
+        response = Datagram(receiving_connection)
+        response.set_decrypted_message(message)
+        response.set_package_protocol(parser.find_package_protocol('hpn_ping'))
+        self.send(response=response)
 
     def verify_hpn_ping(self, parser):
-        value = parser.get_part('hpn_ping')
+        value = parser.unpack_package.hpn_ping
         max = (int(time.time()) + settings.peer_ping_time_seconds) & 0xff
         min = (int(time.time()) - settings.peer_ping_time_seconds) & 0xff
         return check_border_with_over_flow(min, max, value)
@@ -170,28 +151,29 @@ class Handler(Stream):
         return required_length == request_length
 
     def verify_hpn_protocol_version(self, parser):
-        request_major_protocol_version_marker = parser.get_part('major_hpn_protocol_version_marker')
-        request_minor_protocol_version_marker = parser.get_part('minor_hpn_protocol_version_marker')
-        my_major_protocol_version_marker, my_minor_protocol_version_marker = self.protocol['hpn_protocol_version']
+        request_major_protocol_version_marker = parser.unpack_package.major_hpn_protocol_version_marker
+        request_minor_protocol_version_marker = parser.unpack_package.minor_hpn_protocol_version_marker
+        my_major_protocol_version_marker = parser.protocol.hpn_protocol_version[0]
+        my_minor_protocol_version_marker = parser.protocol.hpn_protocol_version[1]
         return my_major_protocol_version_marker >= request_major_protocol_version_marker \
                and my_minor_protocol_version_marker >= request_minor_protocol_version_marker
 
     def verify_package_id_marker(self, parser):
-        request_id_marker = parser.get_part('package_id_marker')
-        required_id_marker = parser.get_package_id_marker()
+        request_id_marker = parser.unpack_package.package_id_marker
+        required_id_marker = parser.package_protocol.package_id_marker
         return request_id_marker == required_id_marker
 
     def verify_timestamp(self, parser):
-        timestamp = parser.get_part('timestamp')
+        timestamp = parser.unpack_package.timestamp
         return check_border_timestamp(timestamp)
 
     def verify_receiver_fingerprint(self, parser):
-        my_fingerprint_from_request = parser.get_part('receiver_fingerprint')
+        my_fingerprint_from_request = parser.unpack_package.receiver_fingerprint
         my_fingerprint_reference = self.crypt_tools.get_fingerprint()
         return my_fingerprint_from_request == my_fingerprint_reference
 
     def get_receiver_fingerprint(self, **kwargs):
-        return kwargs['received_request'].connection.get_fingerprint()
+        return kwargs['response'].connection.get_fingerprint()
 
     def get_timestamp(self, **kwargs):
         return self.parser().pack_timestamp()

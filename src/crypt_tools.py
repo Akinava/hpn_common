@@ -115,33 +115,29 @@ class Tools(Singleton):
     def sign(self, message):
         return self.ecdsa.sign(message)
 
-    def encrypt_message(self, message, package_protocol, receiving_connection):
-        #logger.debug('connection.get_encrypt_marker {}'.format(connection.get_encrypt_marker()))
-        if package_protocol['encrypted'] is False and package_protocol['signed'] is False:
-            #logger.debug('message is not encrypted')
-            return message
-        if receiving_connection.get_encrypt_marker() is True and package_protocol['encrypted'] is True:
-            # logger.debug('encrypt_message fingerprint {} message {}'.format(
-            #     self.fingerprint.hex(),
-            #     self.encrypt(message, receiving_connection.get_pub_key()).hex()))
-
-            return self.fingerprint + self.encrypt(message, receiving_connection.get_pub_key())
-        if package_protocol['signed'] is True or package_protocol['encrypted'] is True:
-            #logger.debug('message is signed')
-            return self.sign(message)
+    def encrypt_message(self, response):
+        if response.package_protocol.encrypted is not True and response.package_protocol.signed is not True:
+            response.set_raw_message(response.decrypted_message)
+            return
+        if response.connection.get_encrypt_marker() is True and response.package_protocol.encrypted is True:
+            raw_message = self.fingerprint
+            raw_message += self.encrypt(response.decrypted_message, response.connection.get_pub_key())
+            response.set_raw_message(raw_message)
+            return
+        if response.package_protocol.signed is True or response.package_protocol.encrypted is True:
+            response.set_raw_message(self.sign(response.decrypted_message))
+            return
 
     def unpack_datagram(self, request):
         if not self.__is_encrypted(request):
-            request.set_decrypted_request(request.raw_request)
-            #logger.debug('request is not encrypted')
+            request.set_decrypted_message(request.raw_message)
             return True
-        #encrypt_messagelogger.debug('request is decrypt')
         return self.__decrypt_request(request)
 
     def __is_encrypted(self, request):
-        if len(request.raw_request) <= AES.bs:
+        if len(request.raw_message) <= AES.bs:
             return False
-        if self.fingerprint in request.raw_request:
+        if self.fingerprint in request.raw_message:
             return False
         return True
 
@@ -154,6 +150,7 @@ class Tools(Singleton):
         # the connection will not have a pub_key then we need to find the original
         # connection from server which has a pub_key
         fingerprint = request.raw_request[: self.fingerprint_length]
+        # FIXME I do not like how that implemented but I have no idea how to make it better
         net_pool = connection.get_neet_pool()
         if net_pool.set_to_connection_pub_key(connection, fingerprint) is True:
             return connection.get_pub_key()
@@ -164,8 +161,7 @@ class Tools(Singleton):
         if pub_key is None:
             return False
         shared_key = self.get_shared_key_ecdh(pub_key)
-        encrypted_request = request.raw_request[self.fingerprint_length:]
-        decrypted_request = self.aes_decode(shared_key, encrypted_request)
-        # logger.debug('{}'.format(datagram.hex()))
-        request.set_decrypted_request(decrypted_request)
+        encrypted_message = request.raw_message[self.fingerprint_length:]
+        decrypted_message = self.aes_decode(shared_key, encrypted_message)
+        request.set_decrypted_message(decrypted_message)
         return True

@@ -51,7 +51,7 @@ class Connection:
 
     def last_sent_message_is_over_ping_time(self):
         if self.message_was_never_sent():
-            return False
+            return True
         return time() - self.sent_message_time > settings.peer_ping_time_seconds
 
     def last_sent_message_is_over_time_out(self):
