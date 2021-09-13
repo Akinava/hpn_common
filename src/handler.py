@@ -11,7 +11,7 @@ from settings import logger
 import settings
 from datagram import Datagram
 from crypt_tools import Tools as CryptTools
-from utilit import check_border_with_over_flow, check_border_timestamp, Stream, null
+from utilit import check_border_with_over_flow, check_border_timestamp, Stream, null, JObj
 
 
 class Handler(Stream):
@@ -27,6 +27,7 @@ class Handler(Stream):
         self.transport = transport
 
     def datagram_received(self, datagram, remote_addr):
+        logger.debug('=' * 20)
         logger.debug('raw datagram |{}| from {}'.format(datagram.hex(), remote_addr))
         request = self.net_pool.datagram_received(self.transport, datagram, remote_addr)
         self.run_stream(
@@ -37,6 +38,8 @@ class Handler(Stream):
         logger.debug('')
 
     def __handle(self, request):
+        # FIXME net_pool set for CryptTools.__get_connection_pub_key
+        request.net_pool = self.net_pool
         if self.crypt_tools.unpack_datagram(request) is False:
             return
         #logger.debug('decrypted datagram {} from {}'.format(connection.get_request().hex(), remote_addr))
@@ -50,11 +53,14 @@ class Handler(Stream):
 
         logger.debug('message received from {}'.format(request.connection))
         parser.debug_unpack_package(request.decrypted_message)
-        logger.debug('=' * 10)
 
         response_function = self.__get_response_function(request)
         if response_function is None:
+            logger.debug('GeneralProtocol no response_function_name')
+            logger.debug('=' * 20)
             return
+        logger.debug('GeneralProtocol response_function_name {}'.format(request.package_protocol.response))
+        logger.debug('=' * 20)
         response_function(request)
 
     def __define_package_protocol(self, parser):
@@ -63,7 +69,6 @@ class Handler(Stream):
             # logger.debug('check package_protocol {}'.format(package_protocol['name']))
             if self.__define_request(parser):
                 logger.debug('package define as {}'.format(package_protocol['name']))
-
                 return True
         logger.warn('GeneralProtocol can not define request')
         return False
@@ -71,15 +76,10 @@ class Handler(Stream):
     def __define_request(self, parser):
         name_protocol_definition_functions = parser.package_protocol.define
         for name_protocol_definition_function in name_protocol_definition_functions:
-            if not hasattr(self, name_protocol_definition_function):
-                logger.debug('define_func {} is not implemented'.format(name_protocol_definition_function))
-                return False
             define_func = getattr(self, name_protocol_definition_function)
-
             # logger.debug('define_func_name {}, result - {}'.format(
             #         name_protocol_definition_function,
             #         define_func(parser)))
-
             if define_func(parser) is False:
                 return False
         return True
@@ -87,9 +87,7 @@ class Handler(Stream):
     def __get_response_function(self, request):
         response_function_name = request.package_protocol.response
         if response_function_name is null:
-            logger.debug('GeneralProtocol no response_function_name')
             return
-        logger.debug('GeneralProtocol response_function_name {}'.format(response_function_name))
         return getattr(self, response_function_name)
 
     def make_message(self, **kwargs):
@@ -97,13 +95,18 @@ class Handler(Stream):
         response_package_protocol = self.parser().find_package_protocol(
             package_protocol_name=response_package_protocol_name)
         kwargs['response'].set_package_protocol(response_package_protocol)
+        kwargs['structure'] = response_package_protocol.structure
+        message = self.make_message_by_structure(**kwargs)
+        kwargs['response'].set_decrypted_message(message)
+
+    def make_message_by_structure(self, **kwargs):
         message = b''
-        for part_structure in response_package_protocol.structure:
+        for part_structure in kwargs['structure']:
             if part_structure.type == 'markers':
                 make_part_message_function = self.get_markers
                 kwargs['markers_structure'] = part_structure
             else:
-                make_part_message_function = getattr(self, 'get_{}'.format(part_structure['name']))
+                make_part_message_function = getattr(self, 'get_{}'.format(part_structure.name))
 
             # logger.debug('make part {} {}'.format(
             #     part_structure['name'],
@@ -112,32 +115,35 @@ class Handler(Stream):
             message += make_part_message_function(**kwargs)
         return message
 
-    def send(self, response):
-        self.run_stream(target=self.thread_send, response=response)
+    def send(self, **kwargs):
+        self.run_stream(target=self.thread_send, **kwargs)
 
-    def thread_send(self, response):
-        logger.debug('message send to {} package {}'.format(response.connection, response.package_protocol.name))
+    def thread_send(self, **kwargs):
+        self.make_message(**kwargs)
+        response = kwargs['response']
         parser = self.parser()
         parser.set_package_protocol(response.package_protocol)
         parser.debug_unpack_package(response.decrypted_message)
-
         self.crypt_tools.encrypt_message(response=response)
 
+        logger.debug('=' * 20)
+        logger.debug('message send to {} package {}'.format(response.connection, response.package_protocol.name))
         logger.debug('encrypted_message {} |{}| to {}'.format(
             response.package_protocol.name,
             response.raw_message.hex(),
             response.connection))
-        logger.debug('=' * 10)
+        logger.debug('=' * 20)
 
         response.connection.send(response.raw_message)
 
     def hpn_ping(self, receiving_connection):
-        parser = self.parser()
-        message = parser.pack_int(int(time.time()) & 0xff, 1)
-        response = Datagram(receiving_connection)
-        response.set_decrypted_message(message)
-        response.set_package_protocol(parser.find_package_protocol('hpn_ping'))
-        self.send(response=response)
+        request = Datagram(connection=receiving_connection)
+        response = Datagram(connection=receiving_connection)
+        request.set_package_protocol(JObj({'response': 'hpn_ping'}))
+        self.send(request=request, response=response)
+
+    def get_hpn_ping(self, **kwargs):
+        return self.parser().pack_int(int(time.time()) & 0xff, 1)
 
     def verify_hpn_ping(self, parser):
         value = parser.unpack_package.hpn_ping
@@ -179,7 +185,7 @@ class Handler(Stream):
         return self.parser().pack_timestamp()
 
     def get_package_id_marker(self, **kwargs):
-        marker = self.parser().find_package_protocol(kwargs['package_protocol_name'])['package_id_marker']
+        marker = kwargs['response'].package_protocol.package_id_marker
         return self.parser().pack_int(marker, 1)
 
     def get_markers(self, **kwargs):
@@ -191,7 +197,6 @@ class Handler(Stream):
             marker_description = self.parser().protocol.markers[marker_name]
             markers ^= self.make_marker(marker, marker_description, markers_structure)
         packed_markers = self.parser().pack_int(markers, markers_structure.length)
-        del kwargs['markers_structure']
         return packed_markers
 
     def make_marker(self, marker, marker_description, part_structure):

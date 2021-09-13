@@ -6,9 +6,6 @@ __license__ = 'MIT License'
 __version__ = [0, 0]
 
 
-from utilit import JObj
-
-
 class Datagram:
     def __init__(self, connection, raw_message=None):
         self.connection = connection

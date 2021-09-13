@@ -8,7 +8,7 @@ __version__ = [0, 0]
 
 import struct
 import time
-from utilit import null, JObj
+from utilit import null, JObj, debug_obj
 from settings import logger
 
 
@@ -39,15 +39,9 @@ class Parser:
     def debug_unpack_package(self, message):
         self.message = message
         unpack_request = self.unpack_package
-        debug_unpack_request = {}
-        for k, v in unpack_request.items():
-            if isinstance(v, bytes):
-                debug_unpack_request[k] = v.hex()
-            else:
-                debug_unpack_request[k] = v
         logger.debug('package {} unpack_package {}'.format(
             self.package_protocol.name,
-            debug_unpack_request))
+            debug_obj(unpack_request)))
 
     @property
     def unpack_package(self):
@@ -80,7 +74,7 @@ class Parser:
         return {part_name: unpack_data}
 
     def unpack_list(self, **kwargs):
-        structure = self.__protocol['lists'][kwargs['part_name']]['structure']
+        structure = self.protocol.lists[kwargs['part_name']].structure
         data = kwargs['part_data']
         unpack_data_list = []
         while data:
@@ -102,7 +96,7 @@ class Parser:
         return {'hpn_ping': self.unpack_int(**kwarg)}
 
     def unpack_mapping(self, mapping_name, mapping_data):
-        structure = self.__protocol['mapping'][mapping_name]['structure']
+        structure = self.protocol.mapping[mapping_name].structure
         inv_structure = {v: k for k, v in structure.items()}
         return inv_structure[mapping_data]
 
@@ -283,7 +277,7 @@ class Parser:
         raise Exception('Error: no description for marker {}'.format(marker_name))
 
     def pack_mapping(self, mapping_name, mapping_data):
-        structure = self.__protocol['mapping'][mapping_name]['structure']
+        structure = self.protocol.mapping[mapping_name].structure
         return self.pack_self_defined_int(structure[mapping_data])
 
     def unpack_int(self, **kwargs):

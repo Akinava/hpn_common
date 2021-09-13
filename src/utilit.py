@@ -94,6 +94,10 @@ class JObj:
             return [self.__wrap_up(v) for v in self.__data.values()]
         raise AttributeError('{} object has no attribute items'.format())
 
+    @property
+    def _property(self):
+        return self.__data
+
 
 class Stream:
     def run_stream(self, target, **kwargs):
@@ -164,6 +168,18 @@ def update_obj(src, dst):
     if isinstance(src, list) and isinstance(dst, list):
         return update_list(src, dst)
     return src
+
+
+def debug_obj(obj):
+    if isinstance(obj, bytes):
+        return obj.hex()
+    if isinstance(obj, JObj):
+        return debug_obj(obj._property)
+    if isinstance(obj, list):
+        return [debug_obj(item) for item in obj]
+    if isinstance(obj, dict):
+        return {k: debug_obj(v) for k, v in obj.items()}
+    return obj
 
 
 def update_dict(src, dst):

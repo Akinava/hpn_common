@@ -27,7 +27,6 @@ class NetPool(Singleton):
         connection = Connection(remote_addr=remote_addr, transport=transport)
         if connection in self.connections_list:
             return self.connections_list[self.connections_list.index(connection)]
-        connection.set_net_pool(self)
         self.connections_list.append(connection)
         return connection
 

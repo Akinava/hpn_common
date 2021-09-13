@@ -142,18 +142,16 @@ class Tools(Singleton):
         return True
 
     def __get_connection_pub_key(self, request):
-        connection = request.get_connection()
-        pub_key = connection.get_pub_key()
+        pub_key = request.connection.get_pub_key()
         if pub_key is not None:
             return pub_key
-        # in case if request came from another port that we gat from server
+        # in case if request came from another port that we get from server
         # the connection will not have a pub_key then we need to find the original
         # connection from server which has a pub_key
         fingerprint = request.raw_request[: self.fingerprint_length]
-        # FIXME I do not like how that implemented but I have no idea how to make it better
-        net_pool = connection.get_neet_pool()
-        if net_pool.set_to_connection_pub_key(connection, fingerprint) is True:
-            return connection.get_pub_key()
+        net_pool = request.net_pool
+        if net_pool.set_to_connection_pub_key(request.connection, fingerprint) is True:
+            return request.connection.get_pub_key()
         return None
 
     def __decrypt_request(self, request):

@@ -8,10 +8,8 @@ __version__ = [0, 0]
 
 from time import time
 import settings
-from settings import logger
 from crypt_tools import Tools as CryptTools
 from utilit import null
-from utilit import check_border_timestamp
 
 
 class Connection:
@@ -80,12 +78,6 @@ class Connection:
 
     def __set_remote_addr(self, remote_addr):
         self.__remote_host, self.__remote_port = remote_addr
-
-    def get_neet_pool(self):
-        return self.net_pool
-
-    def set_net_pool(self, net_pool):
-        self.net_pool = net_pool
 
     def set_pub_key(self, pub_key):
         if pub_key is None:
