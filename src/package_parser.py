@@ -39,7 +39,7 @@ class Parser:
     def debug_unpack_package(self, message):
         self.message = message
         unpack_request = self.unpack_package
-        logger.debug('package {} unpack_package {}'.format(
+        logger.debug('package {} {}'.format(
             self.package_protocol.name,
             debug_obj(unpack_request)))
 

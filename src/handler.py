@@ -51,7 +51,6 @@ class Handler(Stream):
         request.set_unpack_message(parser.unpack_package)
         request.set_package_protocol(parser.package_protocol)
 
-        logger.debug('message received from {}'.format(request.connection))
         parser.debug_unpack_package(request.decrypted_message)
 
         response_function = self.__get_response_function(request)
@@ -121,13 +120,13 @@ class Handler(Stream):
     def thread_send(self, **kwargs):
         self.make_message(**kwargs)
         response = kwargs['response']
-        parser = self.parser()
-        parser.set_package_protocol(response.package_protocol)
-        parser.debug_unpack_package(response.decrypted_message)
         self.crypt_tools.encrypt_message(response=response)
 
         logger.debug('=' * 20)
         logger.debug('message send to {} package {}'.format(response.connection, response.package_protocol.name))
+        parser = self.parser()
+        parser.set_package_protocol(response.package_protocol)
+        parser.debug_unpack_package(response.decrypted_message)
         logger.debug('encrypted_message {} |{}| to {}'.format(
             response.package_protocol.name,
             response.raw_message.hex(),
