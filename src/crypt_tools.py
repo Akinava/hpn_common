@@ -148,7 +148,7 @@ class Tools(Singleton):
         # in case if request came from another port that we get from server
         # the connection will not have a pub_key then we need to find the original
         # connection from server which has a pub_key
-        fingerprint = request.raw_request[: self.fingerprint_length]
+        fingerprint = request.raw_message[: self.fingerprint_length]
         net_pool = request.net_pool
         if net_pool.set_to_connection_pub_key(request.connection, fingerprint) is True:
             return request.connection.get_pub_key()
