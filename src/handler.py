@@ -48,8 +48,14 @@ class Handler(Stream):
 
         if self.__define_package_protocol(parser) is False:
             return
+
         request.set_unpack_message(parser.unpack_package)
         request.set_package_protocol(parser.package_protocol)
+
+        if not request.package_protocol.name in ['hpn_ping']:
+            # no needs to add in pool all unrecognizable requests connection
+            # hpn_ping also
+            self.net_pool.add_connection(request.connection)
 
         parser.debug_unpack_package(request.decrypted_message)
 

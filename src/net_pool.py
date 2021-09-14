@@ -27,8 +27,11 @@ class NetPool(Singleton):
         connection = Connection(remote_addr=remote_addr, transport=transport)
         if connection in self.connections_list:
             return self.connections_list[self.connections_list.index(connection)]
-        self.connections_list.append(connection)
         return connection
+
+    def add_connection(self, connection):
+        if not connection in self.connections_list:
+            self.connections_list.append(connection)
 
     def clean_connections_list(self):
         alive_connections_list = []
@@ -51,10 +54,8 @@ class NetPool(Singleton):
         return False
 
     def disconnect(self, connection):
-        self.connections_list.remove(connection)
-        connection.shutdown()
+        if connection in self.connections_list:
+            self.connections_list.remove(connection)
 
     def shutdown(self):
-        for connection in self.connections_list:
-            connection.shutdown()
         self.connections_list = []

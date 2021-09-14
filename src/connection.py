@@ -10,11 +10,12 @@ from time import time
 import settings
 from crypt_tools import Tools as CryptTools
 from utilit import null
+from settings import logger
 
 
 class Connection:
     def __init__(self, remote_addr=None, transport=None):
-        #logger.debug('')
+        # logger.debug('')
         self.transport = transport
         self.received_message_time = None
         self.sent_message_time = None
@@ -42,21 +43,16 @@ class Connection:
         if self.message_was_never_sent():
             return False
         if self.message_was_never_received():
-            if self.last_sent_message_is_over_time_out():
-                return True
-            return False
-        return time() - self.received_message_time > settings.peer_timeout_seconds
+            return self.first_sent_message_is_over_time_out()
+        return self.received_message_time + settings.peer_timeout_seconds < time()
 
     def last_sent_message_is_over_ping_time(self):
         if self.message_was_never_sent():
             return True
-        return time() - self.sent_message_time > settings.peer_ping_time_seconds
+        return self.sent_message_time + settings.peer_ping_time_seconds < time()
 
-    def last_sent_message_is_over_time_out(self):
-        return time() - self.sent_message_time > settings.peer_timeout_seconds
-
-    # def get_time_received_message(self):
-    #     return self.received_message_time
+    def first_sent_message_is_over_time_out(self):
+        return self.sent_message_first_time + settings.peer_timeout_seconds < time()
 
     def message_was_never_sent(self):
         return self.sent_message_time is None
@@ -67,11 +63,10 @@ class Connection:
     def get_time_sent_message(self):
         return self.sent_message_time
 
-    def set_time_sent_message(self, sent_message_time=null):
-        if sent_message_time is null:
-            self.sent_message_time = time()
-        else:
-            self.sent_message_time = sent_message_time
+    def set_time_sent_message(self):
+        if self.sent_message_time is None:
+            self.sent_message_first_time = time()
+        self.sent_message_time = time()
 
     def set_time_received_message(self):
         self.received_message_time = time()
@@ -107,8 +102,3 @@ class Connection:
     def send(self, response):
         self.transport.sendto(response, (self.__remote_host, self.__remote_port))
         self.set_time_sent_message()
-
-    def shutdown(self):
-        if self.transport.is_closing():
-            return
-        self.transport.close()
