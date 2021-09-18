@@ -37,11 +37,30 @@ class Handler(Stream):
     def connection_lost(self, remote_addr):
         logger.debug('')
 
+    def unpack_datagram(self, request):
+        if self.crypt_tools.is_encrypted(request) is False:
+            request.set_decrypted_message(request.raw_message)
+            return True
+
+        pub_key = request.connection.get_pub_key()
+        if pub_key:
+            return self.crypt_tools.decrypt_request(pub_key, request)
+
+        if hasattr(self, 'extended_get_pub_key') is False:
+            logger.warn('can\'t unpack datagram from {}'.format(request))
+            return False
+
+        pub_key = self.extended_get_pub_key(request)
+        if pub_key:
+            return self.crypt_tools.decrypt_request(pub_key, request)
+        logger.warn('can\'t unpack datagram from {}'.format(request))
+        return False
+
     def __handle(self, request):
-        # FIXME net_pool set for CryptTools.__get_connection_pub_key
-        request.net_pool = self.net_pool
-        if self.crypt_tools.unpack_datagram(request) is False:
+        if self.unpack_datagram(request) if False:
+            logger.warn('can\'t unpack datagram from {}'.format(request))
             return
+
         #logger.debug('decrypted datagram {} from {}'.format(connection.get_request().hex(), remote_addr))
         parser = self.parser()
         parser.set_message(request.decrypted_message)
@@ -51,11 +70,6 @@ class Handler(Stream):
 
         request.set_unpack_message(parser.unpack_package)
         request.set_package_protocol(parser.package_protocol)
-
-        if not request.package_protocol.name in ['hpn_ping']:
-            # no needs to add in pool all unrecognizable requests connection
-            # hpn_ping also
-            self.net_pool.add_connection(request.connection)
 
         parser.debug_unpack_package(request.decrypted_message)
 
@@ -82,9 +96,10 @@ class Handler(Stream):
         name_protocol_definition_functions = parser.package_protocol.define
         for name_protocol_definition_function in name_protocol_definition_functions:
             define_func = getattr(self, name_protocol_definition_function)
-            # logger.debug('define_func_name {}, result - {}'.format(
-            #         name_protocol_definition_function,
-            #         define_func(parser)))
+            logger.debug('protocol name {}, define_func_name {}, result - {}'.format(
+                    parser.package_protocol.name,
+                    name_protocol_definition_function,
+                    define_func(parser)))
             if define_func(parser) is False:
                 return False
         return True
@@ -151,6 +166,8 @@ class Handler(Stream):
         return self.parser().pack_int(int(time.time()) & 0xff, 1)
 
     def verify_hpn_ping(self, parser):
+        if settings.peer_ping_time_seconds >= 0x80:
+            return True
         value = parser.unpack_package.hpn_ping
         max = (int(time.time()) + settings.peer_ping_time_seconds) & 0xff
         min = (int(time.time()) - settings.peer_ping_time_seconds) & 0xff

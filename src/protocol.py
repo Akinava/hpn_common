@@ -23,12 +23,12 @@ PROTOCOL = {
             'structure': [
                 {'name': 'hpn_ping', 'length': 1, 'type': 'hpn_ping'}]},
         {
-            'name': 'hpn_neighbour_client_request',
+            'name': 'hpn_neighbours_client_request',
             'package_id_marker': 1,
             'define': 'ctr_verify_len_ver_id_marker_timestamp_receiver_fingerprint',
             'encrypted': False,
             'signed': False,
-            'response': 'hpn_neighbour_client',
+            'response': 'hpn_neighbours',
             'structure': [
                 {'name': ('major_hpn_protocol_version_marker', 'minor_hpn_protocol_version_marker'), 'length': 1, 'type': 'markers'},
                 {'name': ('encrypted_request_marker', 'package_id_marker'), 'length': 1, 'type': 'markers'},
@@ -36,7 +36,7 @@ PROTOCOL = {
                 {'name': 'timestamp', 'length': 4, 'type': 'timestamp'},
                 {'name': 'requester_pub_key', 'length': CryptTools.pub_key_length}]},
         {
-            'name': 'hpn_neighbour_client',
+            'name': 'hpn_neighbours',
             'package_id_marker': 2,
             'define': 'ctr_verify_len_ver_id_marker_timestamp_receiver_fingerprint',
             'encrypted': True,
@@ -44,9 +44,8 @@ PROTOCOL = {
             'response': 'hpn_servers_request',
             'structure': [
                 {'name': 'ctr_structure_protocol_version_id_marker_receiver_fingerprint_timestamp', 'type': 'contraction'},
-                {'name': 'neighbour_pub_key', 'length': CryptTools.pub_key_length},
-                {'name': 'neighbour_addr', 'length': Parser.get_packed_addr_length(), 'type': 'addr'},
-                {'name': 'disconnect_flag', 'length': 1, 'type': 'bool'}]},
+                {'name': 'disconnect_flag', 'length': 1, 'type': 'bool'},
+                {'name': 'hpn_clients_list', 'type': 'list'}]},
         {
             'name': 'hpn_servers_request',
             'package_id_marker': 3,
@@ -65,7 +64,7 @@ PROTOCOL = {
             'response': 'save_hpn_servers_list',
             'structure': [
                 {'name': 'ctr_structure_protocol_version_id_marker_receiver_fingerprint_timestamp', 'type': 'contraction'},
-                {'name': 'hpn_servers_list', 'type': 'list'}]}
+                {'name': 'hpn_servers_list', 'type': 'list'}]},
     ],
     'markers': [
         {'name': 'encrypted_request_marker', 'start_bit': 0, 'length': 1, 'type': 'bool_marker'},
@@ -80,7 +79,12 @@ PROTOCOL = {
             'structure': [
                 {'name': 'hpn_servers_pub_key', 'length': CryptTools.pub_key_length},
                 {'name': 'hpn_servers_protocol', 'length': 1, 'type': 'hpn_servers_protocol'},
-                {'name': 'hpn_servers_addr', 'length': Parser.get_packed_addr_length(), 'type': 'addr'}]}
+                {'name': 'hpn_servers_addr', 'length': Parser.get_packed_addr_length(), 'type': 'addr'}]},
+        {
+            'name': 'hpn_clients_list',
+            'structure': [
+                {'name': 'hpn_clients_pub_key', 'length': CryptTools.pub_key_length},
+                {'name': 'hpn_clients_addr', 'length': Parser.get_packed_addr_length(), 'type': 'addr'}]},
     ],
     'contraction': [
         {

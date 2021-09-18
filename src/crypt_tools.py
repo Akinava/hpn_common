@@ -128,36 +128,14 @@ class Tools(Singleton):
             response.set_raw_message(self.sign(response.decrypted_message))
             return
 
-    def unpack_datagram(self, request):
-        if not self.__is_encrypted(request):
-            request.set_decrypted_message(request.raw_message)
-            return True
-        return self.__decrypt_request(request)
-
-    def __is_encrypted(self, request):
+    def is_encrypted(self, request):
         if len(request.raw_message) <= AES.bs:
             return False
         if self.fingerprint in request.raw_message:
             return False
         return True
 
-    def __get_connection_pub_key(self, request):
-        pub_key = request.connection.get_pub_key()
-        if pub_key is not None:
-            return pub_key
-        # in case if request came from another port that we get from server
-        # the connection will not have a pub_key then we need to find the original
-        # connection from server which has a pub_key
-        fingerprint = request.raw_message[: self.fingerprint_length]
-        net_pool = request.net_pool
-        if net_pool.set_to_connection_pub_key(request.connection, fingerprint) is True:
-            return request.connection.get_pub_key()
-        return None
-
-    def __decrypt_request(self, request):
-        pub_key = self.__get_connection_pub_key(request)
-        if pub_key is None:
-            return False
+    def decrypt_request(self, pub_key, request):
         shared_key = self.get_shared_key_ecdh(pub_key)
         encrypted_message = request.raw_message[self.fingerprint_length:]
         decrypted_message = self.aes_decode(shared_key, encrypted_message)

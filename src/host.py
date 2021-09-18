@@ -62,7 +62,7 @@ class Host:
 
     def __ping_connections(self):
         for connection in self.net_pool.get_all_connections():
-            if connection.last_sent_message_is_over_ping_time():
+            if connection.ping_require():
                 self.handler().hpn_ping(connection)
 
     def __shutdown_connections(self):

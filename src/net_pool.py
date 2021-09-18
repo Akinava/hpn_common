@@ -46,13 +46,6 @@ class NetPool(Singleton):
         self.clean_connections_list()
         return self.connections_list
 
-    def set_to_connection_pub_key(self, dst_connection, fingerprint):
-        for src_connection in self.connections_list:
-            if src_connection.get_fingerprint() == fingerprint:
-                self.copy_connection_property(src_connection, dst_connection)
-                return True
-        return False
-
     def disconnect(self, connection):
         if connection in self.connections_list:
             self.connections_list.remove(connection)

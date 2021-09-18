@@ -36,14 +36,18 @@ class Connection:
     def __repr__(self):
         return '{}:{}'.format(self.__remote_host, self.__remote_port)
 
-    # def is_alive(self):
-    #     return self.transport.is_closing() is False
+    def ping_require(self):
+        if self.message_was_never_sent():
+            return False
+        if self.message_was_never_received():
+            return False
+        return self.sent_message_time + settings.peer_ping_time_seconds < time()
 
     def last_received_message_is_over_time_out(self):
         if self.message_was_never_sent():
             return False
         if self.message_was_never_received():
-            return self.first_sent_message_is_over_time_out()
+            return False
         return self.received_message_time + settings.peer_timeout_seconds < time()
 
     def last_sent_message_is_over_ping_time(self):
@@ -51,21 +55,13 @@ class Connection:
             return True
         return self.sent_message_time + settings.peer_ping_time_seconds < time()
 
-    def first_sent_message_is_over_time_out(self):
-        return self.sent_message_first_time + settings.peer_timeout_seconds < time()
-
     def message_was_never_sent(self):
         return self.sent_message_time is None
 
     def message_was_never_received(self):
         return self.received_message_time is None
 
-    def get_time_sent_message(self):
-        return self.sent_message_time
-
     def set_time_sent_message(self):
-        if self.sent_message_time is None:
-            self.sent_message_first_time = time()
         self.sent_message_time = time()
 
     def set_time_received_message(self):
@@ -78,7 +74,7 @@ class Connection:
         if pub_key is None:
             return
         self._pub_key = pub_key
-        self.__fingerprint = CryptTools().make_fingerprint(pub_key)
+        self._fingerprint = CryptTools().make_fingerprint(pub_key)
 
     def get_pub_key(self):
         if not hasattr(self, '_pub_key'):
@@ -86,7 +82,9 @@ class Connection:
         return self._pub_key
 
     def get_fingerprint(self):
-        return self.__fingerprint
+        if not hasattr(self, '_fingerprint'):
+            return None
+        return self._fingerprint
 
     def get_remote_addr(self):
         return (self.__remote_host, self.__remote_port)
