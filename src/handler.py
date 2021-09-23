@@ -57,7 +57,7 @@ class Handler(Stream):
         return False
 
     def __handle(self, request):
-        if self.unpack_datagram(request) if False:
+        if self.unpack_datagram(request) is False:
             logger.warn('can\'t unpack datagram from {}'.format(request))
             return
 
