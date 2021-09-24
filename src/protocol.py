@@ -24,7 +24,7 @@ PROTOCOL = {
                 {'name': 'hpn_ping', 'length': 1, 'type': 'hpn_ping'}]},
         {
             'name': 'hpn_neighbours_client_request',
-            'package_id_marker': 1,
+            'package_id_marker': 0x00,
             'define': 'ctr_verify_len_ver_id_marker_timestamp_receiver_fingerprint',
             'encrypted': False,
             'signed': False,
@@ -37,7 +37,7 @@ PROTOCOL = {
                 {'name': 'requester_pub_key', 'length': CryptTools.pub_key_length}]},
         {
             'name': 'hpn_neighbours',
-            'package_id_marker': 2,
+            'package_id_marker': 0x01,
             'define': 'ctr_verify_len_ver_id_marker_timestamp_receiver_fingerprint',
             'encrypted': True,
             'signed': True,
@@ -48,7 +48,7 @@ PROTOCOL = {
                 {'name': 'hpn_clients_list', 'type': 'list'}]},
         {
             'name': 'hpn_servers_request',
-            'package_id_marker': 3,
+            'package_id_marker': 0x02,
             'define': 'ctr_verify_len_ver_id_marker_timestamp_receiver_fingerprint',
             'encrypted': True,
             'signed': True,
@@ -57,7 +57,7 @@ PROTOCOL = {
                 {'name': 'ctr_structure_protocol_version_id_marker_receiver_fingerprint_timestamp', 'type': 'contraction'}]},
         {
             'name': 'hpn_servers_list',
-            'package_id_marker': 4,
+            'package_id_marker': 0x03,
             'define': 'ctr_verify_len_ver_id_marker_timestamp_receiver_fingerprint',
             'encrypted': True,
             'signed': True,
@@ -78,7 +78,7 @@ PROTOCOL = {
             'length': {'max': 10},
             'structure': [
                 {'name': 'hpn_servers_pub_key', 'length': CryptTools.pub_key_length},
-                {'name': 'hpn_servers_protocol', 'length': 1, 'type': 'hpn_servers_protocol'},
+                {'name': 'hpn_servers_protocol', 'length': 1, 'type': 'mapping'},
                 {'name': 'hpn_servers_addr', 'length': Parser.get_packed_addr_length(), 'type': 'addr'}]},
         {
             'name': 'hpn_clients_list',

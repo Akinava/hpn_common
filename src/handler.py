@@ -68,9 +68,7 @@ class Handler(Stream):
         if self.__define_package_protocol(parser) is False:
             return
 
-        request.set_unpack_message(parser.unpack_package)
-        request.set_package_protocol(parser.package_protocol)
-
+        parser.fill_in_request(request)
         parser.debug_unpack_package(request.decrypted_message)
 
         response_function = self.__get_response_function(request)
@@ -96,10 +94,12 @@ class Handler(Stream):
         name_protocol_definition_functions = parser.package_protocol.define
         for name_protocol_definition_function in name_protocol_definition_functions:
             define_func = getattr(self, name_protocol_definition_function)
+
             logger.debug('protocol name {}, define_func_name {}, result - {}'.format(
                     parser.package_protocol.name,
                     name_protocol_definition_function,
                     define_func(parser)))
+
             if define_func(parser) is False:
                 return False
         return True
@@ -120,19 +120,51 @@ class Handler(Stream):
         kwargs['response'].set_decrypted_message(message)
 
     def make_message_by_structure(self, **kwargs):
+        def get_part_name_list(**kwargs):
+            if isinstance(kwargs['part_structure'].name, str):
+                kwargs['part_name_list'] = [kwargs['part_structure'].name]
+            else:
+                kwargs['part_name_list'] = kwargs['part_structure'].name
+            return kwargs
+
+        def make_part_data(**kwargs):
+            kwargs['part_data'] = {}
+            for part_name in kwargs['part_name_list']:
+                make_part_data_function = getattr(self, 'get_{}'.format(part_name))
+                kwargs['part_data'][part_name] = make_part_data_function(**kwargs)
+            return kwargs
+
+        def collect_data(**kwargs):
+            if isinstance(kwargs['part_structure'].name, str):
+                kwargs['part_data'] = kwargs['part_data'][kwargs['part_structure'].name]
+            return kwargs
+
+        def set_part_type(**kwargs):
+            if kwargs['part_structure'].type is null:
+                return kwargs
+            pack_part_type_function = getattr(self.parser(), 'pack_{}'.format(kwargs['part_structure'].type))
+            kwargs = collect_data(**kwargs)
+            kwargs['part_data'] = pack_part_type_function(**kwargs)
+            return kwargs
+
+        def join_data_parts(**kwargs):
+            if isinstance(kwargs['part_data'], bytes):
+                return kwargs
+            if isinstance(kwargs['part_data'], dict):
+                kwargs['part_data'] = kwargs['part_data'][kwargs['part_structure'].name]
+            # TODO if kwargs['part_structure'].name is list but kwargs['part_structure'].type is null
+            #  it needs to be join by kwargs['part_structure'].name list
+            #  right now we do not have such case
+            return kwargs
+
         message = b''
         for part_structure in kwargs['structure']:
-            if part_structure.type == 'markers':
-                make_part_message_function = self.get_markers
-                kwargs['markers_structure'] = part_structure
-            else:
-                make_part_message_function = getattr(self, 'get_{}'.format(part_structure.name))
-
-            # logger.debug('make part {} {}'.format(
-            #     part_structure['name'],
-            #     make_part_message_function(**kwargs).hex()))
-
-            message += make_part_message_function(**kwargs)
+            kwargs['part_structure'] = part_structure
+            kwargs = get_part_name_list(**kwargs)
+            kwargs = make_part_data(**kwargs)
+            kwargs = set_part_type(**kwargs)
+            kwargs = join_data_parts(**kwargs)
+            message += kwargs['part_data']
         return message
 
     def send(self, **kwargs):
@@ -163,7 +195,7 @@ class Handler(Stream):
         self.send(request=request, response=response)
 
     def get_hpn_ping(self, **kwargs):
-        return self.parser().pack_int(int(time.time()) & 0xff, 1)
+        return int(time.time()) & 0xff
 
     def verify_hpn_ping(self, parser):
         if settings.peer_ping_time_seconds >= 0x80:
@@ -204,31 +236,13 @@ class Handler(Stream):
         return kwargs['response'].connection.get_fingerprint()
 
     def get_timestamp(self, **kwargs):
-        return self.parser().pack_timestamp()
+        return int(time.time())
 
     def get_package_id_marker(self, **kwargs):
-        marker = kwargs['response'].package_protocol.package_id_marker
-        return self.parser().pack_int(marker, 1)
+        return kwargs['response'].package_protocol.package_id_marker
 
-    def get_markers(self, **kwargs):
-        markers = 0
-        markers_structure = kwargs['markers_structure']
-        for marker_name in markers_structure.name:
-            get_marker_value_function = getattr(self, '_get_marker_{}'.format(marker_name))
-            marker = get_marker_value_function(**kwargs)
-            marker_description = self.parser().protocol.markers[marker_name]
-            markers ^= self.make_marker(marker, marker_description, markers_structure)
-        packed_markers = self.parser().pack_int(markers, markers_structure.length)
-        return packed_markers
-
-    def make_marker(self, marker, marker_description, part_structure):
-        part_structure_length_bits = part_structure['length'] * 8
-        left_shift = part_structure_length_bits - marker_description['start_bit'] - marker_description['length']
-        return marker << left_shift
-
-    def _get_marker_major_hpn_protocol_version_marker(self, **kwargs):
+    def get_major_hpn_protocol_version_marker(self, **kwargs):
         return self.parser().protocol.hpn_protocol_version[0]
 
-    def _get_marker_minor_hpn_protocol_version_marker(self, **kwargs):
+    def get_minor_hpn_protocol_version_marker(self, **kwargs):
         return self.parser().protocol.hpn_protocol_version[1]
-

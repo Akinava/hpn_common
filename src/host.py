@@ -51,9 +51,6 @@ class Host:
             local_addr=local_addr)
         return transport
 
-    def create_connection(self, transport, remote_addr):
-        return self.net_pool.create_connection(remote_addr, transport)
-
     async def ping(self):
         logger.debug('')
         while not self.default_listener.is_closing():

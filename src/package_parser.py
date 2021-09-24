@@ -30,6 +30,10 @@ class Parser:
     def set_message(self, message):
         self.message = message
 
+    def fill_in_request(self, request):
+        request.set_unpack_message(self.unpack_package)
+        request.set_package_protocol(self.package_protocol)
+
     def find_package_protocol(self, package_protocol_name):
         package_protocol = self.protocol.packages[package_protocol_name]
         if package_protocol is null:
@@ -73,6 +77,11 @@ class Parser:
             return unpack_data
         return {part_name: unpack_data}
 
+    def pack_list(self, **kwargs):
+        length = len(kwargs['part_data'])
+        packed_length = self.pack_self_defined_int(length)
+        return packed_length + b''.join(kwargs['part_data'])
+
     def unpack_list(self, **kwargs):
         structure = self.protocol.lists[kwargs['part_name']].structure
         data = kwargs['part_data']
@@ -92,13 +101,24 @@ class Parser:
         unpack_data = self.unpack_mapping('hpn_servers_protocol', int_data)
         return {kwargs['part_name']: unpack_data}
 
-    def unpack_hpn_ping(self, **kwarg):
-        return {'hpn_ping': self.unpack_int(**kwarg)}
+    def unpack_hpn_ping(self, **kwargs):
+        return {'hpn_ping': self.unpack_int(**kwargs)}
 
-    def unpack_mapping(self, mapping_name, mapping_data):
+    def pack_hpn_ping(self, **kwargs):
+        return self.int_to_hex(kwargs['part_data'], 1)
+
+    def pack_mapping(self, **kwargs):
+        mapping_name = kwargs['part_structure'].name
+        mapping_data = kwargs['part_data']
         structure = self.protocol.mapping[mapping_name].structure
-        inv_structure = {v: k for k, v in structure.items()}
-        return inv_structure[mapping_data]
+        mapping_data_int = structure[mapping_data]
+        return self.pack_self_defined_int(mapping_data_int)
+
+    def unpack_mapping(self, **kwargs):
+        mapping_data_int, _ = self.unpack_self_defined_int(kwargs['part_data'])
+        structure = self.protocol.mapping[kwargs['part_name']].structure
+        inversion_structure = {v: k for k, v in structure.items()}
+        return inversion_structure[mapping_data_int]
 
     def unpack_timestamp(self, **kwargs):
         return self.unpack_int(**kwargs)
@@ -106,14 +126,14 @@ class Parser:
     def unpack_bool_marker(self, **kwargs):
         return kwargs['part_data'] == 1
 
-    def pack_bool(self, part_data):
-        return b'\x01' if part_data else b'\x00'
+    def pack_bool(self, **kwargs):
+        return b'\x01' if kwargs['part_data'] else b'\x00'
 
     def unpack_bool(self, **kwargs):
         return kwargs['part_data'] == b'\x01'
 
-    def pack_addr(self, addr):
-        host, port = addr
+    def pack_addr(self, **kwargs):
+        host, port = kwargs['part_data']
         return struct.pack(self.struct_addr, *(map(int, host.split('.'))), port)
 
     def unpack_addr(self, **kwargs):
@@ -121,6 +141,19 @@ class Parser:
         host = '.'.join(map(str, res[:4]))
         port = res[4]
         return (host, port)
+
+    def pack_markers(self, **kwargs):
+        markers = 0
+        for part_name in kwargs['part_name_list']:
+            marker_description = self.protocol.markers[part_name]
+            marker_value = kwargs['part_data'][part_name]
+            markers ^= self.make_marker(marker_value, marker_description, kwargs['part_structure'])
+        return self.int_to_hex(markers, kwargs['part_structure'].length)
+
+    def make_marker(self, marker_value, marker_description, part_structure):
+        part_structure_length_bits = part_structure['length'] * 8
+        left_shift = part_structure_length_bits - marker_description['start_bit'] - marker_description['length']
+        return marker_value << left_shift
 
     def calc_structure_length(self, structure=None):
         if structure is None:
@@ -212,8 +245,8 @@ class Parser:
             if structures_name_list:
                 recovery_structure(package_protocol, found_structure_contraction)
 
-    def pack_timestamp(self):
-        return self.pack_int(int(time.time()), 4)
+    def pack_timestamp(self, **kwargs):
+        return self.int_to_hex(kwargs['part_data'], 4)
 
     def unpack_markers(self, **kwargs):
         if not isinstance(kwargs['part_name'], str):
@@ -248,7 +281,7 @@ class Parser:
         return kwargs['part_data'] == 1
 
     def __split_markers(self, marker_name, markers_data):
-        request = self.connection.get_request().hex() if hasattr(self, 'connection') else None
+        # request = self.connection.get_request().hex() if hasattr(self, 'connection') else None
         # logger.debug('marker_name {}, markers_data {}, request {}'.format(marker_name, markers_data.hex(), request))
         marker_structure = self.__get_marker_description(marker_name)
         markers_data_length = len(markers_data)
@@ -276,14 +309,13 @@ class Parser:
                 return marker_description
         raise Exception('Error: no description for marker {}'.format(marker_name))
 
-    def pack_mapping(self, mapping_name, mapping_data):
-        structure = self.protocol.mapping[mapping_name].structure
-        return self.pack_self_defined_int(structure[mapping_data])
-
     def unpack_int(self, **kwargs):
         return struct.unpack('>' + self.struct_length[len(kwargs['part_data'])], kwargs['part_data'])[0]
 
-    def pack_int(self, data, size):
+    def pack_int(self, **kwargs):
+        return self.int_to_hex(kwargs['part_data'], kwargs['part_structure'].length)
+
+    def int_to_hex(self, data, size):
         return struct.pack('>' + self.struct_length[size], data)
 
     def __unpack_stream(self, data, length):
@@ -303,12 +335,12 @@ class Parser:
 
     def pack_self_defined_int(self, number):
         if number <= 0xfc:
-            return self.pack_int(data=number, size=1)
+            return self.int_to_hex(data=number, size=1)
         if number <= (1 << (8*2))-1:
-            return self.pack_int(data=0xfd, size=1) + self.pack_int(data=number, size=2)
+            return self.int_to_hex(data=0xfd, size=1) + self.pack_int(data=number, size=2)
         if number <= (1 << (8*4))-1:
-            return self.pack_int(data=0xfe, size=1) + self.pack_int(data=number, size=4)
+            return self.int_to_hex(data=0xfe, size=1) + self.pack_int(data=number, size=4)
         if number <= (1 << (8*8))-1:
-            return self.pack_int(data=0xff, size=1) + self.pack_int(data=number, size=8)
+            return self.int_to_hex(data=0xff, size=1) + self.pack_int(data=number, size=8)
 
 

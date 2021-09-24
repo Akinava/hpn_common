@@ -49,6 +49,7 @@ class NetPool(Singleton):
 
     def disconnect(self, connection):
         if connection in self.connections_list:
+            logger.debug('disconnect from {}'.format(connection))
             self.connections_list.remove(connection)
 
     def shutdown(self):
