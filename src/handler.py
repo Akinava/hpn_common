@@ -27,8 +27,8 @@ class Handler(Stream):
         self.transport = transport
 
     def datagram_received(self, datagram, remote_addr):
-        logger.debug('=' * 20)
-        logger.debug('raw datagram |{}| from {}'.format(datagram.hex(), remote_addr))
+        # logger.debug('=' * 20)
+        # logger.debug('raw datagram |{}| from {}'.format(datagram.hex(), remote_addr))
         request = self.net_pool.datagram_received(self.transport, datagram, remote_addr)
         self.run_stream(
             target=self.__handle,
@@ -69,15 +69,15 @@ class Handler(Stream):
             return
 
         parser.fill_in_request(request)
-        parser.debug_unpack_package(request.decrypted_message)
+        parser.debug_unpack_package(request, 'from')
 
         response_function = self.__get_response_function(request)
         if response_function is None:
-            logger.debug('GeneralProtocol no response_function_name')
-            logger.debug('=' * 20)
+            # logger.debug('GeneralProtocol no response_function_name')
+            # logger.debug('=' * 20)
             return
-        logger.debug('GeneralProtocol response_function_name {}'.format(request.package_protocol.response))
-        logger.debug('=' * 20)
+        # logger.debug('GeneralProtocol response_function_name {}'.format(request.package_protocol.response))
+        # logger.debug('=' * 20)
         response_function(request)
 
     def __define_package_protocol(self, parser):
@@ -85,7 +85,7 @@ class Handler(Stream):
             parser.set_package_protocol(package_protocol)
             # logger.debug('check package_protocol {}'.format(package_protocol['name']))
             if self.__define_request(parser):
-                logger.debug('package define as {}'.format(package_protocol['name']))
+                # logger.debug('package define as {}'.format(package_protocol['name']))
                 return True
         logger.warn('GeneralProtocol can not define request')
         return False
@@ -175,16 +175,16 @@ class Handler(Stream):
         response = kwargs['response']
         self.crypt_tools.encrypt_message(response=response)
 
-        logger.debug('=' * 20)
-        logger.debug('message send to {} package {}'.format(response.connection, response.package_protocol.name))
+        # logger.debug('=' * 20)
+        # logger.debug('message send to {} package {}'.format(response.connection, response.package_protocol.name))
         parser = self.parser()
         parser.set_package_protocol(response.package_protocol)
-        parser.debug_unpack_package(response.decrypted_message)
-        logger.debug('encrypted_message {} |{}| to {}'.format(
-            response.package_protocol.name,
-            response.raw_message.hex(),
-            response.connection))
-        logger.debug('=' * 20)
+        parser.debug_unpack_package(response, 'to')
+        # logger.debug('encrypted_message {} |{}| to {}'.format(
+        #     response.package_protocol.name,
+        #     response.raw_message.hex(),
+        #     response.connection))
+        # logger.debug('=' * 20)
 
         response.connection.send(response.raw_message)
 

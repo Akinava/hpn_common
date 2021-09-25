@@ -7,7 +7,6 @@ __version__ = [0, 0]
 
 
 import struct
-import time
 from utilit import null, JObj, debug_obj
 from settings import logger
 
@@ -40,12 +39,18 @@ class Parser:
             raise Exception('Error: no protocol with the name {}'.format(package_protocol_name))
         return package_protocol
 
-    def debug_unpack_package(self, message):
-        self.message = message
+    def debug_unpack_package(self, datagram, direction):
+        self.message = datagram.decrypted_message
         unpack_request = self.unpack_package
-        logger.debug('package {} {}'.format(
+        logger.debug('package {} {} {}'.format(
             self.package_protocol.name,
-            debug_obj(unpack_request)))
+            direction,
+            datagram.connection))
+        # logger.debug('package {} {} {} {}'.format(
+        #     self.package_protocol.name,
+        #     direction,
+        #     datagram.connection,
+        #     debug_obj(unpack_request)))
 
     @property
     def unpack_package(self):
