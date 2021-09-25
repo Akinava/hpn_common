@@ -95,10 +95,10 @@ class Handler(Stream):
         for name_protocol_definition_function in name_protocol_definition_functions:
             define_func = getattr(self, name_protocol_definition_function)
 
-            logger.debug('protocol name {}, define_func_name {}, result - {}'.format(
-                    parser.package_protocol.name,
-                    name_protocol_definition_function,
-                    define_func(parser)))
+            # logger.debug('protocol name {}, define_func_name {}, result - {}'.format(
+            #         parser.package_protocol.name,
+            #         name_protocol_definition_function,
+            #         define_func(parser)))
 
             if define_func(parser) is False:
                 return False

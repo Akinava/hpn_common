@@ -315,6 +315,12 @@ class Parser:
     def pack_int(self, **kwargs):
         return self.int_to_hex(kwargs['part_data'], kwargs['part_structure'].length)
 
+    def unpack_str(self, **kwargs):
+        return kwargs['part_data'].decode()
+
+    def pack_str(self, **kwargs):
+        return kwargs['part_data'].encode()
+
     def int_to_hex(self, data, size):
         return struct.pack('>' + self.struct_length[size], data)
 
