@@ -114,54 +114,6 @@ def setup_logger():
     settings.logger.addHandler(handler)
 
 
-def now():
-    return datetime.now().strftime(settings.DATA_FORMAT)
-
-
-def str_to_datetime(datatime_string):
-    return datetime.strptime(datatime_string, settings.DATA_FORMAT)
-
-
-def check_border_with_over_flow(min, max, value):
-    if min < max:
-        return min < value < max
-    return value > min or max > value
-
-def check_border_timestamp(timestamp):
-    return time() - settings.peer_ping_time_seconds < timestamp < time() + settings.peer_ping_time_seconds
-
-def read_config_file():
-    with open(settings.config_file, 'r') as cfg_file:
-        return json.loads(cfg_file.read())
-
-
-def import_config():
-    options, args = get_args.parser()
-    options_items = vars(options)
-    config = read_config_file()
-    for k, v in config.items():
-        if k in options_items and not getattr(options, k) is None:
-            continue
-        setattr(settings, k, v)
-
-
-def import_options():
-    options, args = get_args.parser()
-    for key in vars(options):
-        value = getattr(options, key)
-        if value is None:
-            continue
-        setattr(settings, key, value)
-
-
-def encode(text):
-    if isinstance(text, str):
-        return text.encode()
-    if isinstance(text, bytes):
-        return text
-    raise Exception('Error: can\' encode, wrong type is {}'.format(type(text)))
-
-
 def update_obj(src, dst):
     if isinstance(src, dict) and isinstance(dst, dict):
         return update_dict(src, dst)
@@ -190,6 +142,48 @@ def update_dict(src, dst):
 
 def update_list(src, dst):
     return dst + src
+
+
+def now():
+    return datetime.now().strftime(settings.DATA_FORMAT)
+
+
+def str_to_datetime(datatime_string):
+    return datetime.strptime(datatime_string, settings.DATA_FORMAT)
+
+
+def check_border_with_over_flow(min, max, value):
+    if min < max:
+        return min < value < max
+    return value > min or max > value
+
+
+def check_border_timestamp(timestamp):
+    return time() - settings.peer_ping_time_seconds < timestamp < time() + settings.peer_ping_time_seconds
+
+
+def read_config_file():
+    with open(settings.config_file, 'r') as cfg_file:
+        return json.loads(cfg_file.read())
+
+
+def import_config():
+    options, args = get_args.parser()
+    options_items = vars(options)
+    config = read_config_file()
+    for k, v in config.items():
+        if k in options_items and not getattr(options, k) is None:
+            continue
+        setattr(settings, k, v)
+
+
+def import_options():
+    options, args = get_args.parser()
+    for key in vars(options):
+        value = getattr(options, key)
+        if value is None:
+            continue
+        setattr(settings, key, value)
 
 
 def setup_settings():

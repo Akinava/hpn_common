@@ -23,19 +23,16 @@ class Handler(Stream):
         self.parser = parser
 
     def connection_made(self, transport):
-        #logger.debug('')
         self.transport = transport
 
     def datagram_received(self, datagram, remote_addr):
-        # logger.debug('=' * 20)
-        # logger.debug('raw datagram |{}| from {}'.format(datagram.hex(), remote_addr))
         request = self.net_pool.datagram_received(self.transport, datagram, remote_addr)
         self.run_stream(
             target=self.__handle,
             request=request)
 
     def connection_lost(self, remote_addr):
-        logger.debug('')
+        logger.debug(remote_addr)
 
     def unpack_datagram(self, request):
         if self.crypt_tools.is_encrypted(request) is False:
@@ -60,20 +57,17 @@ class Handler(Stream):
         if self.unpack_datagram(request) is False:
             logger.warn('can\'t unpack datagram from {}'.format(request))
             return
-
-        #logger.debug('decrypted datagram {} from {}'.format(connection.get_request().hex(), remote_addr))
+        # logger.debug('decrypted datagram {} from {}'.format(connection.get_request().hex(), remote_addr))
         parser = self.parser()
         parser.set_message(request.decrypted_message)
-
         if self.__define_package_protocol(parser) is False:
             return
-
         parser.fill_in_request(request)
         parser.debug_unpack_package(request, 'from')
 
         response_function = self.__get_response_function(request)
         if response_function is None:
-            # logger.debug('GeneralProtocol no response_function_name')
+            logger.warning('GeneralProtocol no response_function_name')
             # logger.debug('=' * 20)
             return
         # logger.debug('GeneralProtocol response_function_name {}'.format(request.package_protocol.response))

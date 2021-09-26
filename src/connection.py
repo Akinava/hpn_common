@@ -9,13 +9,10 @@ __version__ = [0, 0]
 from time import time
 import settings
 from crypt_tools import Tools as CryptTools
-from utilit import null
-from settings import logger
 
 
 class Connection:
     def __init__(self, remote_addr=None, transport=None):
-        # logger.debug('')
         self.transport = transport
         self.received_message_time = None
         self.sent_message_time = None

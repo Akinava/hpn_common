@@ -33,7 +33,7 @@ class Tools(Singleton):
         self.fingerprint = self.make_fingerprint(self.ecdsa.get_pub_key())
 
     def __read_shadow_file(self):
-        # logger.debug(settings.shadow_file)
+        logger.debug(settings.shadow_file)
         if not os.path.isfile(settings.shadow_file):
             return None
         with open(settings.shadow_file) as shadow_file:
@@ -48,7 +48,6 @@ class Tools(Singleton):
             shadow_file.write(json.dumps(data, indent=2))
 
     def __update_shadow_file(self, new_data):
-        logger.debug(settings.shadow_file)
         file_data = {} or self.__read_shadow_file()
         if file_data is None:
             file_data = {}
@@ -56,7 +55,6 @@ class Tools(Singleton):
         self.__save_shadow_file(file_data)
 
     def __get_ecdsa_from_file(self):
-        #logger.debug('')
         shadow_data = self.__read_shadow_file()
         if shadow_data is None:
             return False
@@ -68,16 +66,13 @@ class Tools(Singleton):
         return True
 
     def __generate_new_ecdsa(self):
-        logger.debug('')
         self.ecdsa = ECDSA()
 
     def __init_ecdh(self):
         priv_key = self.ecdsa.get_priv_key()
         self.ecdh = ECDH(priv_key=priv_key)
 
-
     def __save_ecdsa(self):
-        logger.debug('')
         ecdsa_priv_key = self.ecdsa.get_priv_key()
         ecdsa_priv_key_b58 = B58().pack(ecdsa_priv_key)
         ecdsa_pub_key = self.ecdsa.get_pub_key()

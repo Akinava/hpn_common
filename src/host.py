@@ -16,7 +16,6 @@ import settings
 
 class Host:
     def __init__(self, net_pool, handler, protocol):
-        #logger.debug('')
         self.net_pool = net_pool()
         init_protocol = Parser.init_protocol(protocol)
         self.parser = lambda: Parser(protocol=init_protocol)
@@ -66,13 +65,8 @@ class Host:
         self.net_pool.shutdown()
 
     def __config_reload(self):
-        logger.debug('')
         utilit.import_config()
 
     def __exit(self):
-        logger.debug('')
         self.default_listener.shutdown()
         self.__shutdown_connections()
-
-    def __del__(self):
-        logger.debug('')

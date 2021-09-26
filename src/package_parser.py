@@ -41,16 +41,12 @@ class Parser:
 
     def debug_unpack_package(self, datagram, direction):
         self.message = datagram.decrypted_message
-        unpack_request = self.unpack_package
         logger.debug('package {} {} {}'.format(
             self.package_protocol.name,
             direction,
-            datagram.connection))
-        # logger.debug('package {} {} {} {}'.format(
-        #     self.package_protocol.name,
-        #     direction,
-        #     datagram.connection,
-        #     debug_obj(unpack_request)))
+            datagram.connection,
+            # debug_obj(self.unpack_package),
+        ))
 
     @property
     def unpack_package(self):
@@ -286,8 +282,6 @@ class Parser:
         return kwargs['part_data'] == 1
 
     def __split_markers(self, marker_name, markers_data):
-        # request = self.connection.get_request().hex() if hasattr(self, 'connection') else None
-        # logger.debug('marker_name {}, markers_data {}, request {}'.format(marker_name, markers_data.hex(), request))
         marker_structure = self.__get_marker_description(marker_name)
         markers_data_length = len(markers_data)
         marker_mask = self.__make_mask(
@@ -353,5 +347,3 @@ class Parser:
             return self.int_to_hex(data=0xfe, size=1) + self.pack_int(data=number, size=4)
         if number <= (1 << (8*8))-1:
             return self.int_to_hex(data=0xff, size=1) + self.pack_int(data=number, size=8)
-
-
