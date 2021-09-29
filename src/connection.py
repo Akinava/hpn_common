@@ -84,7 +84,7 @@ class Connection:
         return self._fingerprint
 
     def get_remote_addr(self):
-        return (self.__remote_host, self.__remote_port)
+        return self.__remote_host, self.__remote_port
 
     def set_encrypt_marker(self, encrypt_marker):
         self._encrypt_marker = encrypt_marker

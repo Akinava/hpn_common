@@ -111,17 +111,27 @@ class Tools(Singleton):
         return self.ecdsa.sign(message)
 
     def encrypt_message(self, response):
-        if response.package_protocol.encrypted is not True and response.package_protocol.signed is not True:
+        if self.__get_encrypted_flag(response) is not True and self.__get_signed_flag(response) is not True:
             response.set_raw_message(response.decrypted_message)
             return
-        if response.connection.get_encrypt_marker() is True and response.package_protocol.encrypted is True:
+        if response.connection.get_encrypt_marker() is True and self.__get_encrypted_flag(response) is True:
             raw_message = self.fingerprint
             raw_message += self.encrypt(response.decrypted_message, response.connection.get_pub_key())
             response.set_raw_message(raw_message)
             return
-        if response.package_protocol.signed is True or response.package_protocol.encrypted is True:
+        if self.__get_signed_flag(response) is True or self.__get_encrypted_flag(response) is True:
             response.set_raw_message(self.sign(response.decrypted_message))
             return
+
+    def __get_encrypted_flag(self, datagram):
+        if not 'encrypted' in datagram.package_protocol:
+            return False
+        return datagram.package_protocol['encrypted']
+
+    def __get_signed_flag(self, datagram):
+        if not 'signed' in datagram.package_protocol:
+            return False
+        return datagram.package_protocol['signed']
 
     def is_encrypted(self, request):
         if len(request.raw_message) <= AES.bs:

@@ -7,7 +7,7 @@ __version__ = [0, 0]
 
 
 import struct
-from utilit import null, JObj, debug_obj
+from utilit import debug_obj
 from settings import logger
 
 
@@ -21,7 +21,7 @@ class Parser:
     struct_addr = '>BBBBH'
 
     def __init__(self, protocol):
-        self.protocol = JObj(protocol)
+        self.protocol = protocol
 
     def set_package_protocol(self, package_protocol):
         self.package_protocol = package_protocol
@@ -30,72 +30,86 @@ class Parser:
         self.message = message
 
     def fill_in_request(self, request):
-        request.set_unpack_message(self.unpack_package)
+        request.set_unpack_message(self.unpack_package())
         request.set_package_protocol(self.package_protocol)
-
-    def find_package_protocol(self, package_protocol_name):
-        package_protocol = self.protocol.packages[package_protocol_name]
-        if package_protocol is null:
-            raise Exception('Error: no protocol with the name {}'.format(package_protocol_name))
-        return package_protocol
 
     def debug_unpack_package(self, datagram, direction):
         self.message = datagram.decrypted_message
-        logger.debug('package {} {} {}'.format(
-            self.package_protocol.name,
+        logger.debug('package {} {} {} {}'.format(
+            self.package_protocol['name'],
             direction,
             datagram.connection,
-            # debug_obj(self.unpack_package),
+            debug_obj(self.unpack_package()),
         ))
 
-    @property
-    def unpack_package(self):
-        data = self.message
-        unpack_request = {}
-        for part_structure in self.package_protocol['structure']:
-            if part_structure.type == 'list':
-                list_length, data = self.unpack_self_defined_int(data)
-                list_structure_size = self.calc_list_structure_size(part_structure['name'])
-                length = list_length * list_structure_size
+    def unpack_package(self, data=None, structure=None):
+        def unpack_data_part(data_part, part_structure):
+            if 'length' in part_structure:
+                return self.__get_data_part(data_part, part_structure['length'])
             else:
-                length = part_structure.length
-            part_data, data = self.__unpack_stream(data, length)
-            part_package = self.unpack_type(part_data, part_structure)
-            unpack_request.update(part_package)
-        return JObj(unpack_request)
+                return self.__get_object_data(data_part, part_structure)
+
+        data = data or self.message
+        structure = structure or self.package_protocol['structure']
+        unpack_request = {}
+
+        for part_structure in structure:
+            part_data, data = unpack_data_part(data, part_structure)
+            unpack_request.update(self.unpack_type(part_data, part_structure))
+        return unpack_request
+
+    def calc_structure_length(self, structure=None):
+        structure = structure or self.package_protocol['structure']
+        length = 0
+
+        for part_structure in structure:
+            if 'length' in part_structure:
+                length += part_structure['length']
+            else:
+                try:
+                    object_length, _ = self.__get_object_data_length(self.message[length:], part_structure)
+                    length += object_length
+                except:
+                    return None
+        return length
+
+    def __get_object_data_length(self, part_data, part_structure):
+        number_of_objects, rest_data = self.unpack_self_defined_int(part_data)
+        number_of_objects_length = len(part_data) - len(rest_data)
+        object_structure = self.protocol[part_structure['type']][part_structure['name']]['structure']
+        object_structure_length = self.calc_structure_length(structure=object_structure)
+        return object_structure_length * number_of_objects + number_of_objects_length, rest_data
+
+    def __get_object_data(self, data, part_structure):
+        object_data_length, data = self.__get_object_data_length(data, part_structure)
+        return self.__get_data_part(data, object_data_length)
+
+    def unpack_list(self, **kwargs):
+        structure = self.protocol['list'][kwargs['part_name']]['structure']
+        structure_length = self.calc_structure_length(structure)
+        data = kwargs['part_data']
+        unpack_obj_list = []
+        while data:
+            obj_data, data = self.__get_data_part(data, structure_length)
+            unpack_obj_list.append(self.unpack_package(obj_data, structure))
+        return unpack_obj_list
 
     def get_request_length(self):
         return len(self.message)
 
     def unpack_type(self, part_data, part_structure):
-        part_type = part_structure.type
-        part_name = part_structure.name
-        if part_type is null:
-            return {part_name: part_data}
-        unpack_type_function = getattr(self, 'unpack_{}'.format(part_type))
-        unpack_data = unpack_type_function(part_name=part_name, part_data=part_data)
+        if not 'type' in part_structure:
+            return {part_structure['name']: part_data}
+        unpack_type_function = getattr(self, 'unpack_{}'.format(part_structure['type']))
+        unpack_data = unpack_type_function(part_name=part_structure['name'], part_data=part_data)
         if isinstance(unpack_data, dict):
             return unpack_data
-        return {part_name: unpack_data}
+        return {part_structure['name']: unpack_data}
 
     def pack_list(self, **kwargs):
         length = len(kwargs['part_data'])
         packed_length = self.pack_self_defined_int(length)
         return packed_length + b''.join(kwargs['part_data'])
-
-    def unpack_list(self, **kwargs):
-        structure = self.protocol.lists[kwargs['part_name']].structure
-        data = kwargs['part_data']
-        unpack_data_list = []
-        while data:
-            unpack_data_item = {}
-            for part_structure in structure:
-                length = part_structure['length']
-                part_data, data = self.__unpack_stream(data, length)
-                part_package = self.unpack_type(part_data, part_structure)
-                unpack_data_item.update(part_package)
-            unpack_data_list.append(unpack_data_item)
-        return {kwargs['part_name']: unpack_data_list}
 
     def unpack_hpn_servers_protocol(self, **kwargs):
         int_data, _ = self.unpack_self_defined_int(kwargs['part_data'])
@@ -109,15 +123,15 @@ class Parser:
         return self.int_to_hex(kwargs['part_data'], 1)
 
     def pack_mapping(self, **kwargs):
-        mapping_name = kwargs['part_structure'].name
+        mapping_name = kwargs['part_structure']['name']
         mapping_data = kwargs['part_data']
-        structure = self.protocol.mapping[mapping_name].structure
+        structure = self.protocol['mapping'][mapping_name]['structure']
         mapping_data_int = structure[mapping_data]
         return self.pack_self_defined_int(mapping_data_int)
 
     def unpack_mapping(self, **kwargs):
         mapping_data_int, _ = self.unpack_self_defined_int(kwargs['part_data'])
-        structure = self.protocol.mapping[kwargs['part_name']].structure
+        structure = self.protocol['mapping'][kwargs['part_name']]['structure']
         inversion_structure = {v: k for k, v in structure.items()}
         return inversion_structure[mapping_data_int]
 
@@ -146,41 +160,15 @@ class Parser:
     def pack_markers(self, **kwargs):
         markers = 0
         for part_name in kwargs['part_name_list']:
-            marker_description = self.protocol.markers[part_name]
+            marker_description = self.protocol['marker'][part_name]
             marker_value = kwargs['part_data'][part_name]
             markers ^= self.make_marker(marker_value, marker_description, kwargs['part_structure'])
-        return self.int_to_hex(markers, kwargs['part_structure'].length)
+        return self.int_to_hex(markers, kwargs['part_structure']['length'])
 
     def make_marker(self, marker_value, marker_description, part_structure):
         part_structure_length_bits = part_structure['length'] * 8
         left_shift = part_structure_length_bits - marker_description['start_bit'] - marker_description['length']
         return marker_value << left_shift
-
-    def calc_structure_length(self, structure=None):
-        if structure is None:
-            structure = self.package_protocol.structure
-        length = 0
-        for part in structure:
-            if length > len(self.message):
-                return None
-            if part.type == 'list':
-                length += self.calc_list_length(
-                    list_name=part.name,
-                    skip_bytes=length)
-                continue
-            length += part.length
-        return length
-
-    def calc_list_length(self, list_name, skip_bytes):
-        data = self.message[skip_bytes:]
-        size, rest = self.unpack_self_defined_int(data)
-        size_bytes = len(data) - len(rest)
-        list_structure_length = self.calc_list_structure_size(list_name)
-        return size * list_structure_length + size_bytes
-
-    def calc_list_structure_size(self, list_name):
-        list_structure = self.protocol.lists[list_name].structure
-        return self.calc_structure_length(structure=list_structure)
 
     @classmethod
     def get_packed_addr_length(cls):
@@ -194,7 +182,7 @@ class Parser:
 
     @classmethod
     def convert_protocol_to_dict(cls, protocol):
-        for key in ['packages', 'markers', 'lists', 'contraction', 'mapping']:
+        for key in ['package', 'marker', 'list', 'contraction', 'mapping']:
             items_list = protocol[key]
             items_dict = {}
             for item in items_list:
@@ -235,7 +223,7 @@ class Parser:
 
         contractions_name = protocol['contraction'].keys()
 
-        for package_protocol in protocol['packages'].values():
+        for package_protocol in protocol['package'].values():
             define_name_list = get_define_name_list(package_protocol)
             found_define_contraction = set(contractions_name) & set(define_name_list)
             if found_define_contraction:
@@ -250,22 +238,11 @@ class Parser:
         return self.int_to_hex(kwargs['part_data'], 4)
 
     def unpack_markers(self, **kwargs):
-        if not isinstance(kwargs['part_name'], str):
-            return self.unpack_multiple_marker(kwargs['part_name'], kwargs['part_data'])
-        return self.unpack_single_marker(kwargs['part_name'], kwargs['part_data'])
-
-
-    def unpack_multiple_marker(self, part_name_list, markers_data):
-        unpack_package = {}
-        for marker_name in part_name_list:
-            marker_data_int = self.__split_markers(marker_name, markers_data)
-            unpack_package[marker_name] = self.set_marker_type(marker_name, marker_data_int)
-        return unpack_package
-
-    def unpack_single_marker(self, marker_name, marker_data):
-        marker_data = self.unpack_int(part_data=marker_data)
-        marker_data_int = self.unpack_int(part_data=marker_data)
-        return {marker_name: self.set_marker_type(marker_name, marker_data_int)}
+        markers = {}
+        for marker_name in kwargs['part_name']:
+            marker_data = self.__split_markers(marker_name, kwargs['part_data'])
+            markers.update(self.unpack_type(marker_data, self.protocol['marker'][marker_name]))
+        return markers
 
     def set_marker_type(self, marker_name, marker_data):
         marker_structure = self.__get_marker_description(marker_name)
@@ -282,7 +259,7 @@ class Parser:
         return kwargs['part_data'] == 1
 
     def __split_markers(self, marker_name, markers_data):
-        marker_structure = self.__get_marker_description(marker_name)
+        marker_structure = self.protocol['marker'][marker_name]
         markers_data_length = len(markers_data)
         marker_mask = self.__make_mask(
             marker_structure['start_bit'],
@@ -302,17 +279,11 @@ class Parser:
     def __get_left_shift(self, start_bit, length_bit, length_data_byte):
         return length_data_byte * 8 - start_bit - length_bit
 
-    def __get_marker_description(self, marker_name):
-        for marker_description in self.protocol.markers.values():
-            if marker_description['name'] == marker_name:
-                return marker_description
-        raise Exception('Error: no description for marker {}'.format(marker_name))
-
     def unpack_int(self, **kwargs):
         return struct.unpack('>' + self.struct_length[len(kwargs['part_data'])], kwargs['part_data'])[0]
 
     def pack_int(self, **kwargs):
-        return self.int_to_hex(kwargs['part_data'], kwargs['part_structure'].length)
+        return self.int_to_hex(kwargs['part_data'], kwargs['part_structure']['length'])
 
     def unpack_str(self, **kwargs):
         return kwargs['part_data'].decode()
@@ -323,7 +294,7 @@ class Parser:
     def int_to_hex(self, data, size):
         return struct.pack('>' + self.struct_length[size], data)
 
-    def __unpack_stream(self, data, length):
+    def __get_data_part(self, data, length):
         return data[: length], data[length:]
 
     def unpack_self_defined_int(self, data):

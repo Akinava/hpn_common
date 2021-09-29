@@ -30,75 +30,6 @@ class Singleton(object):
         return
 
 
-class NULL:
-    def __getattr__(self, attr):
-        return self
-
-    def __getitem__(self, item):
-        return self
-
-
-null = NULL()
-
-
-class JObj:
-    def __init__(self, data):
-        self.__data = data
-
-    def __str__(self):
-        return json.dumps(self.__data, indent=2)
-
-    def __getattr__(self, attr):
-        if isinstance(self.__data, dict):
-            return self.__get_from_dict(attr)
-        return null
-
-    def __getitem__(self, item):
-        if isinstance(self.__data, (list, tuple)):
-            return self.__get_from_list(item)
-        if isinstance(self.__data, dict):
-            return self.__get_from_dict(item)
-        return null
-
-    def __iter__(self):
-        if isinstance(self.__data, (list, tuple, dict)):
-            self.__iter = iter(self.__data)
-            return self
-        raise TypeError('type {} is not iterable'.format(type(self.__data)))
-
-    def __next__(self):
-        return self.__wrap_up(next(self.__iter))
-
-    def __get_from_list(self, index):
-        if len(self.__data) > index:
-            return self.__wrap_up(self.__data[index])
-        return null
-
-    def __get_from_dict(self, key):
-        if key in self.__data:
-            return self.__wrap_up(self.__data[key])
-        return null
-
-    def __wrap_up(self, obj):
-        if isinstance(obj, (dict, list, tuple)):
-            return JObj(obj)
-        return obj
-
-    def items(self):
-        if isinstance(self.__data, dict):
-            return [[k, self.__wrap_up(v)] for k, v in self.__data.items()]
-        raise AttributeError('{} object has no attribute items'.format())
-
-    def values(self):
-        if isinstance(self.__data, dict):
-            return [self.__wrap_up(v) for v in self.__data.values()]
-        raise AttributeError('{} object has no attribute items'.format())
-
-    @property
-    def _property(self):
-        return self.__data
-
-
 class Stream:
     def run_stream(self, target, **kwargs):
         t = threading.Thread(target=target, kwargs=kwargs, daemon=True)
@@ -125,8 +56,6 @@ def update_obj(src, dst):
 def debug_obj(obj):
     if isinstance(obj, bytes):
         return obj.hex()
-    if isinstance(obj, JObj):
-        return debug_obj(obj._property)
     if isinstance(obj, list):
         return [debug_obj(item) for item in obj]
     if isinstance(obj, dict):
@@ -146,10 +75,6 @@ def update_list(src, dst):
 
 def now():
     return datetime.now().strftime(settings.DATA_FORMAT)
-
-
-def str_to_datetime(datatime_string):
-    return datetime.strptime(datatime_string, settings.DATA_FORMAT)
 
 
 def check_border_with_over_flow(min, max, value):
